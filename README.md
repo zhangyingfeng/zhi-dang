@@ -114,3 +114,14 @@ npm start
 ## 许可证
 
 本项目使用 [Unlicense](UNLICENSE)，在法律允许的范围内贡献给公共领域，允许任何人复制、修改、发布、使用或销售，不要求署名。软件按现状提供，不附带担保。
+
+## 参考与致谢
+
+开发过程中参考过以下开源项目的设计和实现思路：
+
+- [youngfish42/zhihuhelp_with_node](...)：分页任务、内容归档和电子书生成思路
+- [zhangolve/zhihu-answer-convert-to-md-by-node](...)：知乎回答数据转换为 Markdown 的思路
+- [qtqz/zhihu-backup-collect](...)：图片本地化和 Markdown 元数据组织思路
+
+本项目为独立实现，不包含或派生自上述项目的源代码。
+上述项目各自适用其原有许可证。

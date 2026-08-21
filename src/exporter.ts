@@ -4,12 +4,11 @@ import path from "node:path";
 import TurndownService from "turndown";
 import type { ExportOptions, ListingReport, ZhihuItem } from "./types.js";
 import { isoDate, safeName, sleep, writeJson } from "./util.js";
-import type { ZhihuClient } from "./zhihu.js";
+import { downloadImage } from "./zhihu.js";
 
 export class Exporter {
   private td=new TurndownService({headingStyle:"atx",codeBlockStyle:"fenced",bulletListMarker:"-"});
   private imageCache=new Map<string,string>();
-  constructor(private client:ZhihuClient){}
   async export(items:ZhihuItem[],listingReports:ListingReport[],opts:ExportOptions,onProgress:(i:number,total:number,title:string)=>void){
     this.imageCache.clear(); await mkdir(opts.outputDir,{recursive:true}); const records=[]; const imageFailures:ImageFailure[]=[]; const itemFailures:ItemFailure[]=[];
     for(let i=0;i<items.length;i++){
@@ -37,7 +36,7 @@ export class Exporter {
     }
     return {html,paths,failures};
   }
-  private async downloadWithRetry(url:string){ let last:unknown; for(let attempt=1;attempt<=3;attempt++){ try{return await this.client.download(url);}catch(error){last=error;if(attempt<3)await sleep(500*2**(attempt-1));} } throw last; }
+  private async downloadWithRetry(url:string){ let last:unknown; for(let attempt=1;attempt<=3;attempt++){ try{return await downloadImage(url);}catch(error){last=error;if(attempt<3)await sleep(500*2**(attempt-1));} } throw last; }
 }
 
 type ImageFailure={itemId:string;url:string;error:string};

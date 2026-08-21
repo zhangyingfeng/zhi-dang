@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.0.0-preview.1
+
+Preview build of the Tauri-based desktop rewrite (`v1-tauri` branch), not yet merged to `main`. Packaged as a standalone macOS app: no Node.js, npm, or Chrome install required.
+
+- Replaced the standalone Chrome window (Playwright) with an embedded login window; the app now detects login completion automatically and prompts when it's safe to close the window.
+- Replaced Playwright entirely. Zhihu API calls run as `fetch()` inside the login window's own page context; image downloads use a plain HTTP request. No browser automation dependency remains.
+- Packaged the Node backend as a self-contained sidecar executable (no Node install required on the target machine) and wired it into a real `tauri build`, producing an installable `.app`/`.dmg`.
+- Known gaps before this becomes 1.0: documentation (README, ROADMAP, TROUBLESHOOTING, etc.) still describes the 0.3.x Playwright architecture and needs a full rewrite; only tested on macOS so far.
+
 ## 0.3.3
 
 - Closed the login browser on `SIGINT`/`SIGTERM` instead of leaving an orphaned Chrome process holding the profile lock, which had been causing `launchPersistentContext` to fail on the next login attempt.

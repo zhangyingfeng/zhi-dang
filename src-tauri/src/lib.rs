@@ -29,11 +29,17 @@ async fn open_login_window(app: tauri::AppHandle) -> Result<(), String> {
   Ok(())
 }
 
-/// Closes the login window (used by the in-page "close this window" button).
+/// Hides the login window (used by the in-page "close this window" button).
+///
+/// This deliberately hides rather than destroys the window: every later
+/// Zhihu API call runs as `fetch()` inside this window's own page context
+/// (see `do_zhihu_fetch`), so the window — and the authenticated session
+/// living in its page — has to stay alive for the lifetime of the app, even
+/// though the user just wants it out of the way.
 #[tauri::command]
 fn close_login_window(app: tauri::AppHandle) -> Result<(), String> {
   if let Some(win) = app.get_webview_window("login") {
-    win.close().map_err(|e| e.to_string())?;
+    win.hide().map_err(|e| e.to_string())?;
   }
   Ok(())
 }

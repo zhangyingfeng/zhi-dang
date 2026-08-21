@@ -31,7 +31,7 @@ export async function paginateListing(kind:ContentKind,startUrl:string,fetchPage
     onCount?.(output.length);
     if(page.paging.is_end){ completed=true; break; }
     if(!page.paging.next) throw new Error("知乎分页数据不完整：尚未结束但缺少下一页地址。");
-    url=page.paging.next; await sleep(delayMs);
+    url=page.paging.next.replace(/^http:\/\//,"https://"); await sleep(delayMs);
   }
   if(!completed) throw new Error("知乎分页超过安全上限，导出已停止以避免生成不完整归档。");
   const warning=expectedTotal!=null&&received!==expectedTotal?`知乎报告总数 ${expectedTotal}，分页实际返回 ${received} 条；已导出能够取得的内容。`:null;
@@ -46,7 +46,7 @@ export class ZhihuClient {
       try{if(!this.page||this.page.isClosed())this.page=await this.context.newPage();return;}
       catch{this.context=undefined;this.page=undefined;}
     }
-    const context=await chromium.launchPersistentContext(path.join(this.dataDir,"browser-profile"),{headless:false,channel:"chrome",viewport:null,chromiumSandbox:true,args:["--start-maximized"]});
+    const context=await chromium.launchPersistentContext(path.join(this.dataDir,"browser-profile"),{headless:true,channel:"chrome",viewport:null,chromiumSandbox:true,args:["--start-maximized"]});
     this.context=context; this.page=context.pages().find(page=>!page.isClosed())??await context.newPage();
     context.once("close",()=>{if(this.context===context){this.context=undefined;this.page=undefined;}});
   }

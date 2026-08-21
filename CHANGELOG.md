@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.0-preview.2
+
+- Stripped debug symbols from the bundled Node sidecar, cutting the packaged app from 151MB to 116MB (DMG: 46MB to 41MB). The sidecar is a full copy of the Node runtime (SEA), which remains the bulk of the app's size.
+
 ## 1.0.0-preview.1
 
 Preview build of the Tauri-based desktop rewrite (`v1-tauri` branch), not yet merged to `main`. Packaged as a standalone macOS app: no Node.js, npm, or Chrome install required.

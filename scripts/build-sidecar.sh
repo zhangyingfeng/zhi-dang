@@ -45,8 +45,18 @@ fi
 npx --yes postject "$OUT" NODE_SEA_BLOB "$WORK_DIR/sea-prep.blob" \
   --sentinel-fuse NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2 \
   --macho-segment-name NODE_SEA
+
+if command -v strip >/dev/null 2>&1; then
+  echo "==> Stripping debug symbols"
+  if [ "$(uname)" = "Darwin" ]; then
+    strip -x "$OUT" || true
+  else
+    strip "$OUT" || true
+  fi
+fi
+
 if [ "$(uname)" = "Darwin" ]; then
-  codesign --sign - "$OUT" 2>/dev/null || true
+  codesign --sign - --force "$OUT" 2>/dev/null || true
 fi
 chmod +x "$OUT"
 

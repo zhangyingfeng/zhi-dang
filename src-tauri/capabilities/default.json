@@ -1,0 +1,14 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Permissions for the app's own main window",
+  "windows": [
+    "main"
+  ],
+  "permissions": [
+    "core:default",
+    "allow-open-login-window",
+    "allow-zhihu-fetch",
+    "allow-zhihu-me"
+  ]
+}

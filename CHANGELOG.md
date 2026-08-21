@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.3
+
+- Closed the login browser on `SIGINT`/`SIGTERM` instead of leaving an orphaned Chrome process holding the profile lock, which had been causing `launchPersistentContext` to fail on the next login attempt.
+- Re-enabled Chromium's OS sandbox for the login browser instead of relying on Playwright's insecure `--no-sandbox` default.
+
 ## 0.3.2
 
 - Stopped pagination from grinding through the full safety cap when Zhihu returned a repeating `next` cursor, failing fast with a clear error instead.

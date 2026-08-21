@@ -46,6 +46,19 @@ npm start
 
 开发排查时优先使用`npm run dev`，它直接运行源码，避免旧`dist`造成混淆。
 
+### 残留Chrome进程占用Profile
+
+如果终端日志中出现"正在现有的浏览器会话中打开"，说明有残留的Chrome进程仍占用着`.data/browser-profile`（通常是之前用`kill -9`或直接关闭终端强制停止服务、浏览器没有被一并关闭导致）。0.3.3之前的版本没有优雅退出处理，更容易出现这种情况；升级到0.3.3或更新版本后，用Ctrl+C或普通`kill`停止服务会自动关闭浏览器，不会再残留。
+
+排查并清理：
+
+```bash
+lsof -ti tcp:4317 | xargs kill
+pkill -f "user-data-dir=$(pwd)/.data/browser-profile"
+```
+
+确认没有残留进程后重新启动服务并点击登录。
+
 ### 专用浏览器Profile异常
 
 完全停止服务并关闭工具打开的Chrome窗口，然后把Profile改名保留：

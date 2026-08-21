@@ -46,7 +46,7 @@ export class ZhihuClient {
       try{if(!this.page||this.page.isClosed())this.page=await this.context.newPage();return;}
       catch{this.context=undefined;this.page=undefined;}
     }
-    const context=await chromium.launchPersistentContext(path.join(this.dataDir,"browser-profile"),{headless:false,channel:"chrome",viewport:null,args:["--start-maximized"]});
+    const context=await chromium.launchPersistentContext(path.join(this.dataDir,"browser-profile"),{headless:false,channel:"chrome",viewport:null,chromiumSandbox:true,args:["--start-maximized"]});
     this.context=context; this.page=context.pages().find(page=>!page.isClosed())??await context.newPage();
     context.once("close",()=>{if(this.context===context){this.context=undefined;this.page=undefined;}});
   }

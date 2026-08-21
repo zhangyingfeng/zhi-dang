@@ -2,6 +2,47 @@
 
 本文记录已经确认的问题、根因和修复方式，便于维护者避免回归。
 
+## 0.3.3：残留Chrome进程导致登录窗口无法再次打开
+
+### 现象
+
+```text
+无法打开登录窗口：browserType.launchPersistentContext: Target page, context or browser has been closed
+```
+
+Chrome启动日志中可见"正在现有的浏览器会话中打开。"
+
+### 根因
+
+服务被强制终止（例如直接`kill`进程，而不是通过`/api/close`）时，Playwright启动的独立Chrome进程不会跟着一起退出，成为孤儿进程，继续占用`.data/browser-profile`。下次启动服务后再次点击登录，新Chrome进程发现Profile已被占用，转发给旧进程后立即退出，导致Playwright连接失败。
+
+### 修复
+
+- 监听`SIGINT`和`SIGTERM`，收到后先调用`client.close()`优雅关闭浏览器，再退出进程。
+
+### 防回归要求
+
+- 正常方式（Ctrl+C、非`-9`的`kill`）停止服务时，浏览器进程必须一并退出；
+- 不得假设进程被终止后浏览器会自动清理；`kill -9`强杀属于已知例外，任何架构都无法覆盖。
+
+## 0.3.3：登录浏览器提示不受支持的命令行标记
+
+### 现象
+
+Chrome信息栏提示"您使用的是不受支持的命令行标记：--no-sandbox。稳定性和安全性会有所下降。"
+
+### 根因
+
+Playwright的`chromiumSandbox`选项默认值是`false`，因此每次启动都会自动加上`--no-sandbox`，与是否root或使用的平台无关；项目代码此前没有显式设置这个选项。
+
+### 修复
+
+- 在`launchPersistentContext`中显式设置`chromiumSandbox:true`，恢复Chromium的沙盒隔离。
+
+### 防回归要求
+
+- 修改浏览器启动参数时，需要确认沙盒仍然开启（启动命令中不应包含`--no-sandbox`）。
+
 ## 0.3.1：浏览器关闭后无法再次登录
 
 ### 现象

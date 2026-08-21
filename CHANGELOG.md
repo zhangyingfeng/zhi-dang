@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.2
+
+- Stopped pagination from grinding through the full safety cap when Zhihu returned a repeating `next` cursor, failing fast with a clear error instead.
+- Extracted pagination, deduplication and item normalization into standalone functions and covered them with automated tests.
+
 ## 0.3.1
 
 - Compared reported totals with raw pagination records before deduplication, and recorded discrepancies instead of aborting a usable export.

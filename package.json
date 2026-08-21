@@ -8,6 +8,7 @@
     "build": "tsc -p tsconfig.json && cp -R public dist/public",
     "start": "node dist/src/server.js",
     "test": "tsx --test test/*.test.ts",
+    "build:sidecar": "./scripts/build-sidecar.sh",
     "tauri": "tauri"
   },
   "dependencies": {

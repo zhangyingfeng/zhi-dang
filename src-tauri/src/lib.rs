@@ -3,7 +3,41 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Mutex;
 use std::time::Duration;
 use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
+use tauri_plugin_shell::ShellExt;
 use tokio::sync::oneshot;
+
+const APP_URL: &str = "http://127.0.0.1:4317";
+
+/// Creates the main window pointed at the local Express server. In `tauri dev`
+/// that server is already running (started by `beforeDevCommand`); in a
+/// release build we spawn it ourselves first as a sidecar.
+fn create_main_window(app: &tauri::AppHandle) -> tauri::Result<()> {
+  let url = APP_URL.parse().expect("APP_URL is a valid URL");
+  WebviewWindowBuilder::new(app, "main", WebviewUrl::External(url))
+    .title("知档")
+    .inner_size(900.0, 900.0)
+    .min_inner_size(640.0, 480.0)
+    .build()?;
+  Ok(())
+}
+
+fn spawn_backend_sidecar(app: &tauri::AppHandle) -> Result<(), Box<dyn std::error::Error>> {
+  let resource_dir = app.path().resource_dir()?;
+  let public_dir = resource_dir.join("public");
+  let sidecar = app
+    .shell()
+    .sidecar("zhidang-server")?
+    .env("ZHIDANG_PUBLIC_DIR", public_dir.to_string_lossy().to_string());
+  let (mut events, _child) = sidecar.spawn()?;
+  tauri::async_runtime::spawn(async move {
+    while let Some(event) = events.recv().await {
+      if let tauri_plugin_shell::process::CommandEvent::Stderr(line) = event {
+        eprintln!("[server] {}", String::from_utf8_lossy(&line));
+      }
+    }
+  });
+  Ok(())
+}
 
 #[derive(Default)]
 struct PendingFetches {
@@ -23,7 +57,8 @@ async fn open_login_window(app: tauri::AppHandle) -> Result<(), String> {
     .parse()
     .map_err(|e: url::ParseError| e.to_string())?;
   WebviewWindowBuilder::new(&app, "login", WebviewUrl::External(url))
-    .inner_size(480.0, 720.0)
+    .inner_size(1000.0, 760.0)
+    .min_inner_size(760.0, 560.0)
     .build()
     .map_err(|e| e.to_string())?;
   Ok(())
@@ -168,6 +203,7 @@ async fn wait_for_login(
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
   tauri::Builder::default()
+    .plugin(tauri_plugin_shell::init())
     .setup(|app| {
       if cfg!(debug_assertions) {
         app.handle().plugin(
@@ -175,6 +211,10 @@ pub fn run() {
             .level(log::LevelFilter::Info)
             .build(),
         )?;
+        create_main_window(app.handle())?;
+      } else {
+        spawn_backend_sidecar(app.handle())?;
+        create_main_window(app.handle())?;
       }
       Ok(())
     })

@@ -7,21 +7,11 @@
     "frontendDist": "../dist/public",
     "devUrl": "http://127.0.0.1:4317",
     "beforeDevCommand": "npm run dev",
-    "beforeBuildCommand": "npm run build"
+    "beforeBuildCommand": "npm run build:sidecar"
   },
   "app": {
     "withGlobalTauri": true,
-    "windows": [
-      {
-        "title": "知档",
-        "width": 900,
-        "height": 900,
-        "minWidth": 640,
-        "minHeight": 480,
-        "resizable": true,
-        "fullscreen": false
-      }
-    ],
+    "windows": [],
     "security": {
       "csp": null
     }
@@ -36,6 +26,8 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
+    "resources": {"../public": "public"},
+    "externalBin": ["binaries/zhidang-server"],
     "android": {
       "debugApplicationIdSuffix": ".debug"
     }

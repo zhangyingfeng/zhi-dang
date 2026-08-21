@@ -5,6 +5,9 @@
   "windows": [
     "main"
   ],
+  "remote": {
+    "urls": ["http://127.0.0.1:4317/*"]
+  },
   "permissions": [
     "core:default",
     "allow-open-login-window",

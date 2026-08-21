@@ -29,6 +29,15 @@ async fn open_login_window(app: tauri::AppHandle) -> Result<(), String> {
   Ok(())
 }
 
+/// Closes the login window (used by the in-page "close this window" button).
+#[tauri::command]
+fn close_login_window(app: tauri::AppHandle) -> Result<(), String> {
+  if let Some(win) = app.get_webview_window("login") {
+    win.close().map_err(|e| e.to_string())?;
+  }
+  Ok(())
+}
+
 /// Runs `fetch(url)` inside the login window's own page context (so Zhihu sees
 /// a normal same-origin request) and awaits the result back in Rust via IPC.
 async fn do_zhihu_fetch(
@@ -87,18 +96,67 @@ fn zhihu_fetch_result(state: tauri::State<'_, PendingFetches>, id: u64, status: 
   }
 }
 
+async fn fetch_url_token(app: &tauri::AppHandle, state: &PendingFetches) -> Result<Option<String>, String> {
+  let (status, body) =
+    do_zhihu_fetch(app, state, "https://www.zhihu.com/api/v4/me?include=url_token").await?;
+  if status != 200 {
+    return Ok(None);
+  }
+  Ok(
+    serde_json::from_str::<serde_json::Value>(&body)
+      .ok()
+      .and_then(|v| v.get("url_token").and_then(|t| t.as_str().map(String::from))),
+  )
+}
+
 /// Checks login status by fetching the account endpoint from inside the page.
 #[tauri::command]
 async fn zhihu_me(
   app: tauri::AppHandle,
   state: tauri::State<'_, PendingFetches>,
 ) -> Result<serde_json::Value, String> {
-  let (status, body) =
-    do_zhihu_fetch(&app, &state, "https://www.zhihu.com/api/v4/me?include=url_token").await?;
-  let url_token = serde_json::from_str::<serde_json::Value>(&body)
-    .ok()
-    .and_then(|v| v.get("url_token").and_then(|t| t.as_str().map(String::from)));
-  Ok(serde_json::json!({ "status": status, "urlToken": url_token }))
+  let url_token = fetch_url_token(&app, &state).await?;
+  Ok(serde_json::json!({ "urlToken": url_token }))
+}
+
+/// Polls the login window until Zhihu reports a logged-in account, then shows
+/// a "you can close this window" banner inside it.
+#[tauri::command]
+async fn wait_for_login(
+  app: tauri::AppHandle,
+  state: tauri::State<'_, PendingFetches>,
+) -> Result<serde_json::Value, String> {
+  let deadline = tokio::time::Instant::now() + Duration::from_secs(300);
+  loop {
+    if app.get_webview_window("login").is_none() {
+      return Err("登录窗口已关闭，请重新点击登录。".to_string());
+    }
+    if let Some(token) = fetch_url_token(&app, &state).await.unwrap_or(None) {
+      if let Some(win) = app.get_webview_window("login") {
+        let banner = r#"(() => {
+          if (document.getElementById('zd-login-ok')) return;
+          const b = document.createElement('div');
+          b.id = 'zd-login-ok';
+          b.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#1a7f37;color:#fff;padding:14px 16px;display:flex;align-items:center;justify-content:center;gap:14px;font:600 15px -apple-system,sans-serif;z-index:2147483647;';
+          const text = document.createElement('span');
+          text.textContent = '登录成功，可以关闭此窗口';
+          const btn = document.createElement('button');
+          btn.textContent = '关闭窗口';
+          btn.style.cssText = 'background:#fff;color:#1a7f37;border:0;border-radius:6px;padding:8px 14px;font:600 14px -apple-system,sans-serif;cursor:pointer;';
+          btn.onclick = () => window.__TAURI__.core.invoke('close_login_window');
+          b.appendChild(text);
+          b.appendChild(btn);
+          document.body.prepend(b);
+        })();"#;
+        let _ = win.eval(banner);
+      }
+      return Ok(serde_json::json!({ "urlToken": token }));
+    }
+    if tokio::time::Instant::now() >= deadline {
+      return Err("等待登录超时，请重新点击登录。".to_string());
+    }
+    tokio::time::sleep(Duration::from_millis(1500)).await;
+  }
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -117,9 +175,11 @@ pub fn run() {
     .manage(PendingFetches::default())
     .invoke_handler(tauri::generate_handler![
       open_login_window,
+      close_login_window,
       zhihu_fetch,
       zhihu_fetch_result,
-      zhihu_me
+      zhihu_me,
+      wait_for_login
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");

@@ -9,6 +9,7 @@
     "core:default",
     "allow-open-login-window",
     "allow-zhihu-fetch",
-    "allow-zhihu-me"
+    "allow-zhihu-me",
+    "allow-wait-for-login"
   ]
 }

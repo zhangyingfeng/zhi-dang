@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "login-remote",
-  "description": "Minimal IPC access for the embedded Zhihu login window: only lets the loaded Zhihu page report a fetch result back, nothing else.",
+  "description": "Minimal IPC access for the embedded Zhihu login window: only lets the loaded Zhihu page report a fetch result back or close itself, nothing else.",
   "windows": [
     "login"
   ],
@@ -9,6 +9,7 @@
     "urls": ["https://www.zhihu.com/*", "https://zhuanlan.zhihu.com/*"]
   },
   "permissions": [
-    "allow-zhihu-fetch-result"
+    "allow-zhihu-fetch-result",
+    "allow-close-login-window"
   ]
 }

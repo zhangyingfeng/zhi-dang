@@ -8,7 +8,7 @@
 2. 在本机运行`npm ci`、`npm test`和`npm run build`。
 3. 使用一个新的测试账号环境执行完整导出，确认数量、图片、封面和`export-report.json`。
 4. 运行隐私检查，确认没有`.data`、导出内容、Cookie、Token、姓名、网站、邮箱或本地绝对路径。
-5. 创建空的公开GitHub仓库`zhihu-author-archive`，不要自动生成README或许可证。
+5. 创建空的公开GitHub仓库`zhi-dang`，不要自动生成README或许可证。
 6. 初始化仓库、提交、设置远程地址并推送`main`。
 7. 在仓库设置中启用Private vulnerability reporting。
 8. 等待GitHub Actions通过后，按`package.json`中的当前版本创建Release。

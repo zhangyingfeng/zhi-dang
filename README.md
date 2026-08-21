@@ -1,4 +1,4 @@
-# 知乎作者归档工具
+# 知档
 
 一个非官方、仅在本机运行的个人内容导出工具。用户在独立的 Chrome 窗口中正常登录后，可以将当前账号本人发布的回答和文章导出为 Markdown、JSON 和本地图片。
 
@@ -25,8 +25,8 @@
 ## 安装和运行
 
 ```bash
-git clone https://github.com/zhangyingfeng/zhihu-author-archive.git
-cd zhihu-author-archive
+git clone https://github.com/zhangyingfeng/zhi-dang.git
+cd zhi-dang
 npm ci
 npm test
 npm run build

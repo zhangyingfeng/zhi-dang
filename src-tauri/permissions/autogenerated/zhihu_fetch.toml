@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-zhihu-fetch"
+description = "Enables the zhihu_fetch command without any pre-configured scope."
+commands.allow = ["zhihu_fetch"]
+
+[[permission]]
+identifier = "deny-zhihu-fetch"
+description = "Denies the zhihu_fetch command without any pre-configured scope."
+commands.deny = ["zhihu_fetch"]

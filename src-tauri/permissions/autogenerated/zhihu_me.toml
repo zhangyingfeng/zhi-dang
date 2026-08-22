@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-zhihu-me"
+description = "Enables the zhihu_me command without any pre-configured scope."
+commands.allow = ["zhihu_me"]
+
+[[permission]]
+identifier = "deny-zhihu-me"
+description = "Denies the zhihu_me command without any pre-configured scope."
+commands.deny = ["zhihu_me"]

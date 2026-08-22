@@ -1,155 +1,59 @@
 # 故障排查手册
 
-按照“现象—检查—处理”的顺序排查。命令应在项目根目录运行。
+按照"现象—检查—处理"的顺序排查。开发者相关命令应在项目根目录运行。
 
-## 登录按钮提示目标页面、上下文或浏览器已关闭
+## 面向普通用户（下载安装包使用）
 
-错误示例：
+### 提示"无法验证开发者"，应用打不开
 
-```text
-page.goto: Target page, context or browser has been closed
-```
+应用尚未完成 Apple 开发者签名。在"系统设置 → 隐私与安全性"里找到对应提示，选择"仍要打开"，只需要做一次。
 
-### 先确认是否运行旧进程
+### 点击"开始登录"没有反应，或登录窗口打开后立刻消失
 
-macOS或Linux：
+1. 完全退出应用（`Cmd+Q`），重新打开；
+2. 确认没有同一个应用的另一个实例仍在后台运行（活动监视器里搜索"知档"）；
+3. 如果反复出现，退出应用后在终端运行一次已安装的 `.app`（例如 `/Applications/知档.app/Contents/MacOS/app`），观察是否有错误输出。
 
-```bash
-lsof -nP -iTCP:4317 -sTCP:LISTEN
-```
+### 登录窗口一直显示登录页，检测不到登录成功
 
-如果有输出，记录PID并正常停止对应进程：
+1. 确认已经在登录窗口里完整走完知乎的登录流程（包括可能出现的安全验证），而不是只打开了页面；
+2. 应用最多轮询 5 分钟；超时会提示"等待登录超时，请重新点击登录"，此时点"开始登录"重试即可；
+3. 如果怀疑是登录会话本身出了问题，用应用里的"退出登录"清空会话后重新登录。
 
-```bash
-kill <PID>
-```
+### 遇到安全验证或验证码
 
-重新确认端口已经释放，然后运行：
+这是知乎正常的风控机制，应用不会也不提供绕过验证的能力。在弹出的登录窗口里正常完成验证即可，验证通过后应用会自动检测到登录成功。不要把验证码、Cookie 或密码提供给 Issue、维护者或任何编码工具。
 
-```bash
-npm run dev
-```
+### 想清除登录状态，换一个账号
 
-### 确认运行的是新代码
+点导出设置卡片右上角的"退出登录"即可；这会清空登录窗口里的会话。之后重新点"开始登录"用另一个账号登录，导出目录会自动改成新账号对应的名字，不会和之前的账号混在一起。
 
-```bash
-grep -n 'context.once' src/zhihu.ts
-grep -n 'context.once' dist/src/zhihu.js
-```
+### 导出目录被拒绝
 
-如果源码中存在、`dist`中不存在：
+应用只写入不存在或为空的目录，不会覆盖已有内容，也不提供增量合并。换一个新目录名即可，例如 `exports-2`。
 
-```bash
-npm run build
-npm start
-```
+### 部分图片没有下载 / 图片重复 / 封面缺失 / 收藏数为 `null`
 
-开发排查时优先使用`npm run dev`，它直接运行源码，避免旧`dist`造成混淆。
+打开导出目录里的 `export-report.json`：
 
-### 残留Chrome进程占用Profile
+- `imageFailures`：每张图片会重试三次，仍失败时保留远程地址并记录原因（原图被删除、CDN 拒绝、URL 过期、网络问题等），不会静默当成功处理。
+- 图片按内容哈希去重，同一张图片正文中重复出现是正常的，不代表下载出错。
+- `cover` 依次尝试接口返回的 `image_url`、`thumbnail`、正文第一张图片，三者都没有时留空是正常情况。
+- `favoriteCount` 为 `null` 表示接口没有返回这个字段（未知），不是 `0`，不要把两者混为一谈。
 
-如果终端日志中出现"正在现有的浏览器会话中打开"，说明有残留的Chrome进程仍占用着`.data/browser-profile`（通常是之前用`kill -9`或直接关闭终端强制停止服务、浏览器没有被一并关闭导致）。0.3.3之前的版本没有优雅退出处理，更容易出现这种情况；升级到0.3.3或更新版本后，用Ctrl+C或普通`kill`停止服务会自动关闭浏览器，不会再残留。
-
-排查并清理：
-
-```bash
-lsof -ti tcp:4317 | xargs kill
-pkill -f "user-data-dir=$(pwd)/.data/browser-profile"
-```
-
-确认没有残留进程后重新启动服务并点击登录。
-
-### 专用浏览器Profile异常
-
-完全停止服务并关闭工具打开的Chrome窗口，然后把Profile改名保留：
-
-```bash
-mv .data/browser-profile .data/browser-profile-backup
-```
-
-重新运行后需要重新登录。确认新Profile正常后再自行处理备份目录。
-
-## 端口已被占用
-
-错误可能包含：
-
-```text
-EADDRINUSE: address already in use 127.0.0.1:4317
-```
-
-检查端口：
-
-```bash
-lsof -nP -iTCP:4317 -sTCP:LISTEN
-```
-
-停止旧项目进程后再启动。不要同时运行`npm start`和`npm run dev`。
-
-## 没有弹出Chrome窗口
-
-确认已安装Google Chrome，并检查终端中的完整错误。当前配置使用Playwright的`chrome`通道，而不是任意浏览器窗口。
-
-如果依赖未完整安装：
-
-```bash
-npm ci
-npm run dev
-```
-
-不要只根据网页弹窗判断；终端错误通常包含Chrome启动失败的具体原因。
-
-## Chrome出现后立即关闭
-
-常见原因：
-
-- 旧服务仍在运行；
-- 工具专用Profile被另一个进程占用；
-- Chrome启动失败；
-- 启动服务的终端进程已经退出。
-
-先释放4317端口，再按前述方法备份`.data/browser-profile`，随后使用`npm run dev`观察终端。
-
-## 显示登录失效或要求安全验证
-
-工具不会绕过验证。切换到工具打开的Chrome窗口，正常完成登录或安全验证，然后回到本地页面点击“我已登录”。
-
-如果一直失败：
-
-1. 确认Chrome窗口没有被关闭；
-2. 确认网络能够正常访问知乎；
-3. 降低重复测试和导出频率；
-4. 停止服务后重新打开；
-5. 必要时备份并重建工具专用Profile。
-
-不要提供Cookie、密码或验证码给Issue、维护者或编码工具。
-
-## 显示“返回的不是内容JSON”
+### 导出中途报错，或看到"返回的不是内容 JSON"一类的错误
 
 可能原因：
 
-- 当前响应是登录页面；
-- 当前响应是安全验证页面；
-- 接口字段或响应结构发生变化；
-- 请求被平台拒绝。
+- 当前响应实际上是安全验证页面，不是接口本来应该返回的数据；
+- 知乎接口字段或响应结构发生了变化；
+- 请求被平台限流或拒绝。
 
-先在Chrome中完成正常验证。如果验证已经完成仍重复出现，应创建Issue并只提供：
+先在登录窗口里确认账号状态正常、没有卡在安全验证上。如果验证已经完成仍然重复出现，创建 Issue 时只提供工具版本、错误信息，以及脱敏后的字段名称结构，不要提交完整响应内容、Cookie 或真实文章。
 
-- 工具版本；
-- HTTP状态码；
-- Content-Type；
-- 已脱敏的字段名称结构。
+### 接口总数和导出数量不同
 
-不要提交完整响应、Cookie、账号ID或真实文章。
-
-## 接口总数和导出数量不同
-
-查看：
-
-```text
-exports/export-report.json
-```
-
-其中`listingReports`会包含：
+查看 `export-report.json` 里的 `listingReports`：
 
 ```json
 {
@@ -161,112 +65,75 @@ exports/export-report.json
 }
 ```
 
-解释：
+- `received` 等于 `reportedTotal` 但 `unique` 较少：分页中有重复记录，已经去重，通常不是漏下载；
+- `received` 小于 `reportedTotal`：接口没有返回全部记录，报告会保留警告；
+- `received` 大于 `reportedTotal`：接口总数在导出过程中发生了变化，或存在分页重叠；
 
-- `received`等于`reportedTotal`，但`unique`较少：分页中存在重复记录，通常不是漏下载；
-- `received`小于`reportedTotal`：接口没有返回全部记录，报告会保留警告；
-- `received`大于`reportedTotal`：接口总数在导出过程中可能变化，或存在分页重叠；
-- `duplicates`大于零：重复ID已经去重，不会生成两篇相同内容。
+对重要归档，建议把唯一回答和文章数量与账号页面上可见的数量人工核对一遍。
 
-对重要归档，应把唯一回答和文章数量与账号页面可见数量人工核对。
+## 面向开发者（从源码运行）
 
-## 导出目录被拒绝
+### `tauri dev` 起不来 / 报 `cargo` 或 `bun` 找不到
 
-工具只写入不存在或为空的目录。请使用新目录，例如：
+确认 Rust 工具链（`cargo`）和 [Bun](https://bun.sh) 都已安装并在 `PATH` 里；新开的终端 / 非交互 shell 有时不会自动加载 `~/.cargo/env` 或 `$BUN_INSTALL/bin`，需要手动 `source` 一下或重新打开终端。
+
+### 改了 `public/` 下的文件，界面没有变化
+
+这是 WKWebView 的静态资源缓存问题，软刷新或让 `tauri dev` 的文件监听自动重载都不可靠。彻底解决方式是完全杀掉进程再重新启动：
+
+```bash
+pkill -f "target/debug/app"
+lsof -ti:4317 | xargs kill -9
+npx tauri dev
+```
+
+改 `src-tauri/` 下的 Rust 代码不受此限制，`tauri dev` 的文件监听会自动重新编译重启。
+
+### 打包后的 `.app` 点击登录没反应，dev 模式下正常
+
+打包（release）环境下，`src-tauri/capabilities/default.json` 里的权限没有覆盖到某个 IPC 调用。检查 `remote.urls` 是否包含发起调用的窗口所在的源，以及 `permissions` 列表里是否有对应命令的 `allow-*` 项。新增一个 Tauri 命令时，记得同时在 `src-tauri/build.rs` 的 `commands` 数组里登记，否则 `capabilities` 里引用它生成的权限标识符会在编译期报错（`Permission allow-xxx not found`）。
+
+### 打包后导出报 `ENOENT` 或路径相关错误
+
+打包环境下 `process.cwd()` 不可靠，sidecar 的资源路径依赖 `ZHIDANG_PUBLIC_DIR` 环境变量（由 Rust 端传入），导出目录的基准路径也从项目目录改成了 `~/Documents`。确认改动没有绕开这两个环境相关的判断（搜索 `ZHIDANG_PUBLIC_DIR` 和 `isPackaged`）。
+
+### 端口 4317 被占用
 
 ```text
-exports-test-2
+EADDRINUSE: address already in use 127.0.0.1:4317
 ```
 
-不要选择：
-
-- 已有归档目录；
-- 项目根目录；
-- 用户主目录；
-- 磁盘根目录；
-- `.data`、`node_modules`或`dist`。
-
-完整导出不会覆盖旧归档。当前版本也不提供增量合并。
-
-## 部分图片没有下载
-
-查看`export-report.json`中的`imageFailures`。工具已经对每张图片尝试三次；仍失败时保留远程地址并记录错误。
-
-常见原因：
-
-- 原图已经删除；
-- 图片CDN暂时拒绝请求；
-- URL过期；
-- 网络中断；
-- 返回的内容类型不是支持的图片格式。
-
-不要只看导出任务是否完成，应同时检查`imageFailures`数量。
-
-## 图片重复
-
-最新版本会清理`noscript`备用图片，并按文件内容哈希去重。如果仍重复：
-
-1. 确认运行的是最新版本；
-2. 使用新的空目录重新导出；
-3. 检查Markdown是否真的包含两条图片引用；
-4. 区分“正文中作者确实重复使用同一图片”和“转换器生成重复节点”。
-
-报告问题时使用虚构或脱敏HTML片段。
-
-## 封面缺失
-
-工具依次尝试：
-
-1. 接口返回的`image_url`；
-2. 接口返回的`thumbnail`；
-3. 正文第一张有效图片。
-
-三者都不存在时，`cover`为空属于正常情况。不要自动把无关占位图片当作封面。
-
-## 收藏数为null
-
-收藏字段不是稳定公开接口的一部分。接口没有返回时工具保存：
-
-```json
-"favoriteCount": null
+```bash
+lsof -nP -iTCP:4317 -sTCP:LISTEN
+kill <PID>
 ```
 
-这表示“未知”，不是零。网站和排序逻辑必须区分`null`与`0`。
+不要同时运行多个 `tauri dev` / 打包好的 `.app` 实例。
 
-## 测试或构建失败
-
-确认Node版本：
+### 测试或构建失败
 
 ```bash
 node --version
-nvm use
-```
-
-重新安装锁定依赖：
-
-```bash
 npm ci
 npm test
-npm run build
 ```
 
-不要在没有更新`package-lock.json`的情况下手工修改依赖版本。
+不要在没有更新 `package-lock.json` 的情况下手工修改依赖版本。
 
-## 提交Issue前
+## 提交 Issue 前
 
 请提供：
 
-- 工具版本；
-- 操作系统、Node和Chrome版本；
+- 应用版本（登录窗口标题栏或 `package.json` 里的 `version`）；
+- 操作系统版本（macOS 版本号，是否 Apple Silicon）；
 - 可重复步骤；
-- 终端错误；
-- 已脱敏的`export-report.json`相关小段。
+- 终端错误（如果是从源码运行）；
+- 已脱敏的 `export-report.json` 相关小段。
 
 请删除：
 
-- Cookie、Token和密码；
+- Cookie、Token 和密码；
 - 账号标识；
 - 真实文章和图片；
-- `.data/browser-profile`；
 - 本地绝对路径；
 - 其他人的个人信息。

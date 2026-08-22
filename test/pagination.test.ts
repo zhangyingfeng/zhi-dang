@@ -65,6 +65,18 @@ test("throws immediately when paging.next cycles back to a visited url",async()=
   await assert.rejects(paginateListing("answer","url1",fetch,{delayMs:0}),/出现循环/);
 });
 
+test("upgrades an http paging.next to https before requesting it",async()=>{
+  const pages:Record<string,ApiPage>={
+    url1:page([raw("1")],{is_end:false,next:"http://www.zhihu.com/api/v4/members/x/answers?offset=5"}),
+    "https://www.zhihu.com/api/v4/members/x/answers?offset=5":page([raw("2")],{is_end:true}),
+  };
+  const requested:string[]=[];
+  const fetch=async(url:string)=>{requested.push(url);return pages[url];};
+  const result=await paginateListing("answer","url1",fetch,{delayMs:0});
+  assert.deepEqual(result.items.map(i=>i.id),["1","2"]);
+  assert.ok(requested.every(u=>!u.startsWith("http://www.zhihu.com")),"no plain-http request should ever be made");
+});
+
 test("onCount reports cumulative unique count as pages complete",async()=>{
   const pages:Record<string,ApiPage>={
     url1:page([raw("1")],{is_end:false,next:"url2"}),

@@ -38,6 +38,7 @@ $("login").onclick=async()=>{
     urlToken=result.urlToken;
     $("step-login").style.display="none";
     $("step-export").style.display="";
+    $("status-section").hidden=false;
   }catch(e){
     showToast(e.message||String(e),true);
     $("login").disabled=false;
@@ -56,6 +57,7 @@ $("export").onclick=async()=>{
   if(!urlToken){
     showToast("登录状态已丢失，请重新登录。",true);
     $("step-login").style.display=""; $("step-export").style.display="none";
+    $("status-section").hidden=true;
     $("login").disabled=false;
     return;
   }
@@ -71,7 +73,7 @@ setInterval(async()=>{try{
   $("message").textContent=p.message;
   $("count").textContent=p.total?`${p.current||0} / ${p.total}`:(p.current?String(p.current):"");
   $("bar").value=p.total?100*(p.current||0)/p.total:0;
-  $("dot").style.background=p.phase==="error"?"#ff6b6b":p.phase==="done"?"#6fdd8b":"#f1c75b";
+  $("dot").className=p.phase==="error"?"error":p.phase==="done"?"done":p.phase==="idle"?"idle":"active";
   if(p.phase==="done"&&p.outputDir){
     lastOutputDir=p.outputDir;
     $("reveal").hidden=false;

@@ -12,6 +12,7 @@ UI/UX pass on top of the preview.3 rewrite, plus account switching and the docum
 - The export directory now defaults to the signed-in account's `url_token`, so switching accounts no longer risks exporting into the same folder.
 - Export controls (export button, directory picker, image checkbox, logout) are now disabled while an export is running, with the export button relabeled "导出中…".
 - Rewrote README, PRIVACY, SECURITY, ROADMAP, AGENTS, and the troubleshooting guide to describe the `v1-tauri` architecture (embedded login window, OS-managed WebView session, sidecar packaging) instead of the retired 0.3.x Playwright/Chrome setup, closing the documentation gap noted in preview.1.
+- Replaced create-tauri-app's default placeholder icon (unrelated yellow/cyan rings) with a real app icon: the "档" character in Hiragino Sans GB W6 on the existing brand blue, regenerated as the full icon set via `tauri icon`.
 
 ## 1.0.0-preview.3
 

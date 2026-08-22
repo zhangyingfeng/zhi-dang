@@ -1,8 +1,17 @@
 # Changelog
 
-## Unreleased
+## 1.0.0-preview.4
 
-- Rewrote README, PRIVACY, SECURITY, ROADMAP and AGENTS to describe the `v1-tauri` architecture (embedded login window, OS-managed WebView session, sidecar packaging) instead of the retired 0.3.x Playwright/Chrome setup, closing the documentation gap noted in preview.1.
+UI/UX pass on top of the preview.3 rewrite, plus account switching and the documentation rewrite that preview.1 flagged as a known gap.
+
+- Reworked the UI to follow macOS system appearance instead of a fixed light/blue theme: CSS system color keywords (`Canvas`/`Field`/`AccentColor`) with `color-scheme: light dark`, so the app tracks light/dark mode and the user's accent color.
+- Dropped the header/logo block from the main window — redundant with the window titlebar, which already shows the app name.
+- Main window now grows/shrinks to fit the current step (small for sign-in, larger once export settings are shown) instead of a fixed oversized size.
+- Fixed a bug where the status bar showed on the sign-in screen: `.status{display:flex}` outranked the `[hidden]` attribute's default `display:none`.
+- Added account switching: a "退出登录" control clears the login window's session and returns to the sign-in step.
+- The export directory now defaults to the signed-in account's `url_token`, so switching accounts no longer risks exporting into the same folder.
+- Export controls (export button, directory picker, image checkbox, logout) are now disabled while an export is running, with the export button relabeled "导出中…".
+- Rewrote README, PRIVACY, SECURITY, ROADMAP, AGENTS, and the troubleshooting guide to describe the `v1-tauri` architecture (embedded login window, OS-managed WebView session, sidecar packaging) instead of the retired 0.3.x Playwright/Chrome setup, closing the documentation gap noted in preview.1.
 
 ## 1.0.0-preview.3
 

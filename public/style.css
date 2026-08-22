@@ -1,13 +1,88 @@
-:root{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC",sans-serif;color:#171717;background:#f4f1ea}*{box-sizing:border-box}body{margin:0}main{width:min(780px,calc(100% - 32px));margin:64px auto}header{display:flex;gap:20px;align-items:center;margin-bottom:36px}.mark{width:58px;height:58px;background:#1769e0;color:white;display:grid;place-items:center;font:700 29px serif;border-radius:15px}h1{margin:0;font-size:32px}header p{margin:6px 0 0;color:#6c6a64}.panel{background:white;border:1px solid #ddd8ce;border-radius:20px;overflow:hidden}.step{display:grid;grid-template-columns:48px 1fr;gap:18px;padding:30px}.step+.step{border-top:1px solid #e6e1d7}.step h2{margin:3px 0 8px;font-size:20px}.step p{margin:0 0 18px;color:#73706a;line-height:1.6}button{border:0;border-radius:9px;background:#1769e0;color:#fff;padding:11px 17px;font-weight:650;cursor:pointer;margin:4px 8px 4px 0}.secondary{background:#e9eef8;color:#2157a3}label{display:block;margin:14px 0;color:#555}input:not([type=checkbox]){display:block;width:100%;margin-top:7px;padding:11px;border:1px solid #cbc6bc;border-radius:8px}.check{display:flex;gap:8px}.status{display:flex;gap:15px;margin-top:20px;padding:22px;background:#22231f;color:#fff;border-radius:16px}.status[hidden]{display:none}.status>div{flex:1}.status strong{display:block}.status small{color:#aaa}.status span{width:10px;height:10px;border-radius:50%;margin-top:5px;background:#5a584f}
+:root{
+  color-scheme:light dark;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC",sans-serif;
+  font-size:13px;
+  color:CanvasText;
+  background:Canvas;
+}
+*{box-sizing:border-box}
+body{margin:0}
+main{width:min(640px,calc(100% - 32px));margin:64px auto}
+
+.panel{
+  background:color-mix(in srgb,CanvasText 4%,Canvas);
+  border-radius:12px;overflow:hidden;
+  box-shadow:0 0 0 1px color-mix(in srgb,CanvasText 10%,transparent);
+}
+.step{display:grid;grid-template-columns:1fr;gap:14px;padding:22px 24px}
+.step+.step{border-top:1px solid color-mix(in srgb,CanvasText 10%,transparent)}
+.step h2{margin:0;font-size:15px;font-weight:600}
+.step-head{display:flex;align-items:center;justify-content:space-between}
+.step-head h2{margin:0}
+.link{
+  background:transparent;color:color-mix(in srgb,CanvasText 55%,Canvas);
+  padding:0;margin:0;font-size:12px;font-weight:400;
+}
+.link:hover{background:transparent;color:CanvasText;filter:none;text-decoration:underline}
+.link:active{background:transparent;filter:none;transform:none}
+.step p{margin:0;color:color-mix(in srgb,CanvasText 55%,Canvas);line-height:1.5}
+
+label{display:block;margin:0;color:color-mix(in srgb,CanvasText 80%,Canvas);font-size:13px}
+label+label{margin-top:14px}
+input:not([type=checkbox]){
+  display:block;width:100%;margin-top:6px;padding:6px 9px;font-size:13px;
+  border:1px solid color-mix(in srgb,CanvasText 18%,transparent);border-radius:6px;
+  background:Field;color:FieldText;font-family:inherit;
+}
+input:not([type=checkbox]):focus{
+  outline:none;border-color:AccentColor;
+  box-shadow:0 0 0 3px color-mix(in srgb,AccentColor 25%,transparent);
+}
+.check{display:flex;align-items:center;gap:7px;margin-top:14px}
+.hint{margin:6px 0 0;color:color-mix(in srgb,CanvasText 45%,Canvas);font-size:12px;line-height:1.5}
+
+button{
+  border:0;border-radius:6px;padding:5px 13px;font-size:13px;font-weight:500;
+  cursor:pointer;margin:0 8px 0 0;font-family:inherit;
+  transition:filter .12s ease,transform .06s ease;
+  background:AccentColor;color:AccentColorText;
+}
+button:last-child{margin-right:0}
+button:hover{filter:brightness(1.08)}
+button:active{filter:brightness(.9);transform:scale(.98)}
+button[disabled]{opacity:.5;cursor:default;transform:none;filter:none}
+.secondary{background:color-mix(in srgb,CanvasText 8%,Canvas);color:CanvasText}
+.secondary:hover{background:color-mix(in srgb,CanvasText 12%,Canvas)}
+.secondary:active{background:color-mix(in srgb,CanvasText 18%,Canvas)}
+
+.dir-row{display:flex;gap:8px;margin-top:6px}
+.dir-row input{margin-top:0;flex:1}
+.dir-row button{margin:0}
+
+.actions{margin-top:4px}
+.step>button,.actions{justify-self:start}
+
+.status{display:flex;gap:14px;margin-top:16px;padding:18px 20px;background:#22231f;color:#fff;border-radius:12px}
+.status[hidden]{display:none}
+.status>div{flex:1}
+.status strong{display:block;font-size:13px;font-weight:600}
+.status small{color:#a6a49c;font-size:12px}
+.status span{width:8px;height:8px;border-radius:50%;margin-top:4px;background:#5a584f;flex-shrink:0}
 .status span.idle{background:#5a584f}
 .status span.active{background:#4b9bf5;animation:pulse 1.4s ease-in-out infinite}
 .status span.done{background:#6fdd8b}
 .status span.error{background:#ff6b6b}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}progress{display:block;width:100%;height:6px;margin:12px 0 5px}footer{color:#777;margin-top:22px;font-size:13px;line-height:1.6}code{background:#e6e1d8;padding:2px 5px;border-radius:4px}@media(max-width:550px){main{margin:28px auto}.step{padding:22px;grid-template-columns:36px 1fr}}
-.step.no-number{grid-template-columns:1fr}
-.hint{margin:-9px 0 14px;color:#8a877e;font-size:13px;line-height:1.5}
-.dir-row{display:flex;gap:8px;margin-top:7px}.dir-row input{margin-top:0;flex:1}.dir-row button{margin:0}
-button[disabled]{opacity:.6;cursor:default}
-.toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);background:#22231f;color:#fff;padding:13px 20px;border-radius:12px;font-size:14px;max-width:min(500px,calc(100% - 40px));box-shadow:0 8px 24px rgba(0,0,0,.25);z-index:1000;animation:toast-in .18s ease-out}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+
+progress{display:block;width:100%;height:4px;margin:10px 0 4px;border-radius:2px}
+
+footer{color:color-mix(in srgb,CanvasText 45%,Canvas);margin-top:18px;font-size:12px;line-height:1.6}
+
+.toast{
+  position:fixed;left:50%;bottom:28px;transform:translateX(-50%);
+  background:#22231f;color:#fff;padding:11px 18px;border-radius:10px;font-size:13px;
+  max-width:min(500px,calc(100% - 40px));box-shadow:0 8px 24px rgba(0,0,0,.25);
+  z-index:1000;animation:toast-in .18s ease-out;
+}
 .toast.error{background:#5c1f1f}
 @keyframes toast-in{from{opacity:0;transform:translateX(-50%) translateY(8px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}

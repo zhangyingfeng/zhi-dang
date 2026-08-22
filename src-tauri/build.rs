@@ -7,6 +7,8 @@ fn main() {
       "zhihu_fetch_result",
       "zhihu_me",
       "wait_for_login",
+      "resize_main_window",
+      "logout",
     ]),
   ))
   .expect("failed to run tauri-build");

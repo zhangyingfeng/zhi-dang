@@ -36,13 +36,27 @@ $("login").onclick=async()=>{
     await invoke("open_login_window");
     const result=await invoke("wait_for_login");
     urlToken=result.urlToken;
+    $("dir").value=urlToken||"exports";
     $("step-login").style.display="none";
     $("step-export").style.display="";
     $("status-section").hidden=false;
+    invoke("resize_main_window",{height:500}).catch(()=>{});
   }catch(e){
     showToast(e.message||String(e),true);
     $("login").disabled=false;
   }
+};
+$("logout").onclick=async()=>{
+  try{ await invoke("logout"); }catch(e){ showToast(e.message||String(e),true); }
+  urlToken=null;
+  lastOutputDir=null;
+  $("reveal").hidden=true;
+  $("step-export").style.display="none";
+  $("step-login").style.display="";
+  $("status-section").hidden=true;
+  $("login").disabled=false;
+  invoke("resize_main_window",{height:280}).catch(()=>{});
+  showToast("已退出登录");
 };
 $("browse").onclick=async()=>{
   try{
@@ -59,6 +73,7 @@ $("export").onclick=async()=>{
     $("step-login").style.display=""; $("step-export").style.display="none";
     $("status-section").hidden=true;
     $("login").disabled=false;
+    invoke("resize_main_window",{height:280}).catch(()=>{});
     return;
   }
   $("reveal").hidden=true;

@@ -15,9 +15,24 @@ fn create_main_window(app: &tauri::AppHandle) -> tauri::Result<()> {
   let url = APP_URL.parse().expect("APP_URL is a valid URL");
   WebviewWindowBuilder::new(app, "main", WebviewUrl::External(url))
     .title("知档")
-    .inner_size(900.0, 900.0)
-    .min_inner_size(640.0, 480.0)
+    .inner_size(760.0, 280.0)
+    .min_inner_size(640.0, 280.0)
     .build()?;
+  Ok(())
+}
+
+/// Grows (or shrinks) the main window's height to fit the current step, while
+/// preserving whatever width the user has resized it to.
+#[tauri::command]
+fn resize_main_window(app: tauri::AppHandle, height: f64) -> Result<(), String> {
+  if let Some(win) = app.get_webview_window("main") {
+    let scale = win.scale_factor().map_err(|e| e.to_string())?;
+    let current = win.inner_size().map_err(|e| e.to_string())?;
+    let width = current.width as f64 / scale;
+    win
+      .set_size(tauri::Size::Logical(tauri::LogicalSize { width, height }))
+      .map_err(|e| e.to_string())?;
+  }
   Ok(())
 }
 
@@ -200,6 +215,21 @@ async fn wait_for_login(
   }
 }
 
+/// Clears the login window's session (cookies, storage, etc.) so the next
+/// login starts fresh, and navigates it back to the sign-in page.
+#[tauri::command]
+fn logout(app: tauri::AppHandle) -> Result<(), String> {
+  if let Some(win) = app.get_webview_window("login") {
+    win.clear_all_browsing_data().map_err(|e| e.to_string())?;
+    let url = "https://www.zhihu.com/signin"
+      .parse()
+      .map_err(|e: url::ParseError| e.to_string())?;
+    win.navigate(url).map_err(|e| e.to_string())?;
+    win.hide().map_err(|e| e.to_string())?;
+  }
+  Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
   tauri::Builder::default()
@@ -227,7 +257,9 @@ pub fn run() {
       zhihu_fetch,
       zhihu_fetch_result,
       zhihu_me,
-      wait_for_login
+      wait_for_login,
+      resize_main_window,
+      logout
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");

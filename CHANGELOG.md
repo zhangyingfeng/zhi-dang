@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Rewrote README, PRIVACY, SECURITY, ROADMAP and AGENTS to describe the `v1-tauri` architecture (embedded login window, OS-managed WebView session, sidecar packaging) instead of the retired 0.3.x Playwright/Chrome setup, closing the documentation gap noted in preview.1.
+
 ## 1.0.0-preview.3
 
 - Switched the sidecar build from Node's SEA (a full copy of the Node runtime) to Bun's native `bun build --compile`, cutting the packaged app from 116MB to 75MB (DMG: 41MB to 29MB). Bun bundles TypeScript/ESM directly, so `scripts/build-sidecar.sh` no longer needs a separate esbuild/SEA pipeline. Building the sidecar now requires Bun instead of Node's experimental SEA feature; verified with a full login + 168-item export, identical results to the Node SEA build.

@@ -1,6 +1,6 @@
 # 知档
 
-知档，即知乎作者归档。一个非官方、仅在本机运行的个人内容导出工具。用户在独立的 Chrome 窗口中正常登录后，可以将当前账号本人发布的回答和文章导出为 Markdown、JSON 和本地图片。
+知档，即知乎作者归档。一个非官方、仅在本机运行的个人内容导出工具。应用内置一个登录窗口，用户在其中正常登录知乎后，即可将当前账号本人发布的回答和文章导出为 Markdown、JSON 和本地图片。
 
 当前项目首先专注于一件事：**完整、安全、可靠地保存作者自己的知乎创作。**
 
@@ -11,42 +11,42 @@
 - 只用于导出本人创作或已经获得授权的内容。
 - 不提供验证码绕过、访问控制规避、代理池或账号池。
 - 不下载评论正文、粉丝列表、关注关系或其他用户资料。
-- 遇到登录失效或安全验证时停止，由用户在 Chrome 中正常完成验证。
+- 遇到登录失效或安全验证时停止，由用户在登录窗口中正常完成验证。
 - 这是独立开发的非官方项目，与知乎不存在隶属、合作、授权或认可关系。
 
 使用者有责任遵守适用法律、著作权规则和平台条款。详见 [DISCLAIMER.md](DISCLAIMER.md) 和 [ACCEPTABLE_USE.md](ACCEPTABLE_USE.md)。
 
-## 环境要求
+## 使用
 
-- macOS、Windows 或 Linux
-- Node.js 24 LTS 或更高版本
-- Google Chrome
+知档是一个独立的桌面应用，不需要安装 Node.js、Chrome 或任何开发工具：
 
-## 安装和运行
+1. 从 [Releases](https://github.com/zhangyingfeng/zhi-dang/releases) 下载安装包（当前只提供 macOS，Apple Silicon）。
+2. 首次打开：因为应用尚未完成 Apple 开发者签名，macOS 会提示"无法验证开发者"；在"系统设置 → 隐私与安全性"里选择"仍要打开"即可，只需要做一次。
+3. 点击"开始登录"，在弹出的窗口中正常登录知乎；登录成功后窗口会自动关闭，应用会自动检测登录状态，不需要手动确认。
+4. 确认保存位置——默认按当前知乎账号自动命名，不同账号登录时会使用不同的默认目录，避免混在一起；需要的话点"浏览…"改成其他位置。
+5. 点击"开始导出"。
+
+要退出当前账号、换成另一个知乎账号导出，点导出设置卡片右上角的"退出登录"，然后重新登录即可。
+
+## 从源码运行（开发者）
 
 ```bash
 git clone https://github.com/zhangyingfeng/zhi-dang.git
 cd zhi-dang
-npm ci
-npm test
-npm run build
-npm start
+git checkout v1-tauri
+npm install
+npx tauri dev
 ```
 
-打开 `http://127.0.0.1:4317`：
+`tauri dev` 会自动启动内置的 Node 后端并打开桌面窗口，不需要单独起服务。
 
-1. 点击“打开登录窗口”。
-2. 在独立 Chrome 窗口中登录或完成安全验证。
-3. 回到本地页面，点击“我已登录”。
-4. 选择一个不存在或为空的新目录。
-5. 点击“开始完整导出”。
-
-开发模式：
+打包成独立 `.app`/`.dmg`：
 
 ```bash
-npm install
-npm run dev
+npx tauri build
 ```
+
+额外需要安装 Rust 工具链（`cargo`）和 [Bun](https://bun.sh)，打包时会用它们把后端编译成独立可执行文件（sidecar），最终产物不依赖用户机器上是否装有 Node.js。
 
 ## 导出结构
 
@@ -69,11 +69,10 @@ exports/
 ## 隐私和安全
 
 - 应用不接收、记录或上传密码。
-- 登录会话保存在 `.data/browser-profile`，并已被 Git 忽略。
+- 登录在应用内置的登录窗口中完成，密码不经过本应用的后端；登录会话由系统自带的 WebView 管理和持久化（macOS 上是 WKWebView），保存路径在 `~/Library/WebKit/` 下，与浏览器/其他应用相互隔离。
+- 想清除登录状态，点应用里的"退出登录"即可；这会清空该会话在系统 WebView 中的全部数据。
 - 导出索引不保存账号姓名、简介或账号标识。
-- 本地页面只监听 `127.0.0.1`。
-- 删除 `.data/browser-profile` 即可清除本地登录状态。
-- 不要把 `.data`、真实导出目录或日志提交到 GitHub。
+- 本地服务只监听 `127.0.0.1`，不对外暴露端口。
 
 完整说明见 [PRIVACY.md](PRIVACY.md) 和 [SECURITY.md](SECURITY.md)。
 
@@ -83,7 +82,7 @@ exports/
 
 - 登录窗口无法打开或打开后关闭；
 - 旧进程占用 4317 端口；
-- 源码已更新但仍在运行旧 `dist`；
+- 源码已更新但仍在运行旧版本；
 - 安全验证页被返回而不是 JSON；
 - 接口总数与去重后数量不同；
 - 图片、封面或收藏数缺失；
@@ -104,15 +103,17 @@ exports/
 
 - 知乎没有为本项目提供正式 API；网页接口字段或安全策略变化时可能需要更新。
 - 已删除、仅自己可见或受平台限制的内容取决于当前账号实际可访问的数据。
-- 本版本只执行完整导出，不会覆盖非空目录，也不把覆盖旧目录冒充成增量更新。
+- 本版本只执行完整导出，不会覆盖非空目录，也不把覆盖旧目录冒充成增量更新；导出中途只能等待完成，暂停/继续导出正在规划中。
 - 首次大量导出可能触发正常的安全验证；项目不会尝试绕过验证。
+- 目前只在 macOS（Apple Silicon）上完整测试过；Windows、Linux 和 Intel Mac 尚未验证。
+- 尚未完成 Apple 开发者签名，首次打开需要在系统设置里手动允许一次。
 
 ## 开发
 
 ```bash
-npm test
-npm run build
-npm start
+npm test        # 后端单元测试
+npx tauri dev    # 启动完整桌面应用
+npx tauri build  # 打包独立 .app / .dmg
 ```
 
 贡献前请阅读 [CONTRIBUTING.md](CONTRIBUTING.md)。使用 Codex 等编码工具维护时，请同时遵守 [AGENTS.md](AGENTS.md) 中的仓库约束。
@@ -129,7 +130,7 @@ npm start
 
 本项目为独立实现，不包含或派生自上述项目的源代码。上述项目各自适用其原有许可证。
 
-本项目同时直接使用 Playwright、Express、Turndown、Zod 等开源依赖，具体版本见 `package.json` 和 `package-lock.json`。
+本项目同时直接使用 Tauri、Express、Turndown、Zod 等开源依赖，桌面端打包使用 Bun 把后端编译为独立可执行文件。具体版本见 `package.json`、`package-lock.json` 和 `src-tauri/Cargo.toml`。
 
 ## 许可证
 

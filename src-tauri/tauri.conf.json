@@ -1,10 +1,10 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "知档",
-  "version": "1.0.0-preview.2",
+  "version": "1.0.0-preview.3",
   "identifier": "com.zhangyingfeng.zhidang",
   "build": {
-    "frontendDist": "../dist/public",
+    "frontendDist": "../public",
     "devUrl": "http://127.0.0.1:4317",
     "beforeDevCommand": "npm run dev",
     "beforeBuildCommand": "npm run build:sidecar"

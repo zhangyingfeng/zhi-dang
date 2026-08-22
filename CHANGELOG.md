@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.0-preview.3
+
+- Switched the sidecar build from Node's SEA (a full copy of the Node runtime) to Bun's native `bun build --compile`, cutting the packaged app from 116MB to 75MB (DMG: 41MB to 29MB). Bun bundles TypeScript/ESM directly, so `scripts/build-sidecar.sh` no longer needs a separate esbuild/SEA pipeline. Building the sidecar now requires Bun instead of Node's experimental SEA feature; verified with a full login + 168-item export, identical results to the Node SEA build.
+
 ## 1.0.0-preview.2
 
 - Stripped debug symbols from the bundled Node sidecar, cutting the packaged app from 151MB to 116MB (DMG: 46MB to 41MB). The sidecar is a full copy of the Node runtime (SEA), which remains the bulk of the app's size.

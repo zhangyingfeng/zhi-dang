@@ -15,6 +15,6 @@ export interface ZhihuItem {
   coverUrl: string | null;
 }
 export interface ExportOptions { outputDir: string; downloadImages: boolean; delayMs: number; }
-export interface Progress { phase: "idle"|"login"|"listing"|"exporting"|"done"|"error"; message: string; current?: number; total?: number; }
+export interface Progress { phase: "idle"|"login"|"listing"|"exporting"|"done"|"error"; message: string; current?: number; total?: number; outputDir?: string; }
 export interface ListingReport { kind: ContentKind; reportedTotal: number | null; received: number; unique: number; duplicates: number; warning: string | null; }
 export interface ListingResult { items: ZhihuItem[]; report: ListingReport; }

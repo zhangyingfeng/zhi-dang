@@ -13,6 +13,8 @@
     "allow-open-login-window",
     "allow-zhihu-fetch",
     "allow-zhihu-me",
-    "allow-wait-for-login"
+    "allow-wait-for-login",
+    "dialog:allow-open",
+    "opener:allow-reveal-item-in-dir"
   ]
 }

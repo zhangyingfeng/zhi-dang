@@ -1,6 +1,17 @@
 const $=id=>document.getElementById(id); const readJson=async r=>{const text=await r.text();try{return JSON.parse(text)}catch{throw Error(r.ok?"应用返回了无法识别的数据。请重启应用后重试。":`应用发生错误（HTTP ${r.status}）。请查看终端中的详细信息。`)}}; const post=(url,body={})=>fetch(url,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)}).then(async r=>{const j=await readJson(r);if(!r.ok)throw Error(j.error||"操作失败");return j});
 const invoke=window.__TAURI__.core.invoke;
 let urlToken=null;
+let lastOutputDir=null;
+
+let toastTimer=null;
+function showToast(message,isError){
+  const t=$("toast");
+  t.textContent=message;
+  t.className="toast"+(isError?" error":"");
+  t.hidden=false;
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>{t.hidden=true},isError?5000:3000);
+}
 
 // Relays knowledge-base fetches requested by the Node backend through the
 // authenticated login window, since only this (Tauri) side can reach it.
@@ -20,7 +31,7 @@ async function relayFrontendFetches(){
 relayFrontendFetches();
 
 $("login").onclick=async()=>{
-  $("login").disabled=true; $("login").textContent="等待登录...";
+  $("login").disabled=true;
   try{
     await invoke("open_login_window");
     const result=await invoke("wait_for_login");
@@ -28,20 +39,43 @@ $("login").onclick=async()=>{
     $("step-login").style.display="none";
     $("step-export").style.display="";
   }catch(e){
-    alert(e.message||String(e));
-    $("login").disabled=false; $("login").textContent="登录知乎";
+    showToast(e.message||String(e),true);
+    $("login").disabled=false;
   }
+};
+$("browse").onclick=async()=>{
+  try{
+    const selected=await invoke("plugin:dialog|open",{options:{directory:true,multiple:false,title:"选择保存位置"}});
+    if(selected) $("dir").value=selected;
+  }catch(e){ showToast(e.message||String(e),true); }
 };
 $("export").onclick=async()=>{
   if(!urlToken){
     try{ urlToken=(await invoke("zhihu_me")).urlToken; }catch{}
   }
   if(!urlToken){
-    alert("登录状态已丢失，请重新登录。");
+    showToast("登录状态已丢失，请重新登录。",true);
     $("step-login").style.display=""; $("step-export").style.display="none";
-    $("login").disabled=false; $("login").textContent="登录知乎";
+    $("login").disabled=false;
     return;
   }
-  post("/api/export",{outputDir:$("dir").value,downloadImages:$("images").checked,delayMs:900,urlToken}).catch(e=>alert(e.message));
+  $("reveal").hidden=true;
+  post("/api/export",{outputDir:$("dir").value,downloadImages:$("images").checked,delayMs:900,urlToken}).catch(e=>showToast(e.message,true));
 };
-setInterval(async()=>{try{const {progress:p}=await fetch("/api/status").then(readJson);$("message").textContent=p.message;$("count").textContent=p.total?`${p.current||0} / ${p.total}`:(p.current?String(p.current):"");$("bar").value=p.total?100*(p.current||0)/p.total:0;$("dot").style.background=p.phase==="error"?"#ff6b6b":p.phase==="done"?"#6fdd8b":"#f1c75b"}catch{}},1200);
+$("reveal").onclick=()=>{
+  if(lastOutputDir) invoke("plugin:opener|reveal_item_in_dir",{paths:[lastOutputDir]}).catch(e=>showToast(e.message||String(e),true));
+};
+let lastPhase=null;
+setInterval(async()=>{try{
+  const {progress:p}=await fetch("/api/status").then(readJson);
+  $("message").textContent=p.message;
+  $("count").textContent=p.total?`${p.current||0} / ${p.total}`:(p.current?String(p.current):"");
+  $("bar").value=p.total?100*(p.current||0)/p.total:0;
+  $("dot").style.background=p.phase==="error"?"#ff6b6b":p.phase==="done"?"#6fdd8b":"#f1c75b";
+  if(p.phase==="done"&&p.outputDir){
+    lastOutputDir=p.outputDir;
+    $("reveal").hidden=false;
+    if(lastPhase!=="done") showToast(`导出完成：${p.outputDir}`);
+  }
+  lastPhase=p.phase;
+}catch{}},1200);

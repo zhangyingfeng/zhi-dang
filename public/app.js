@@ -89,6 +89,12 @@ setInterval(async()=>{try{
   $("count").textContent=p.total?`${p.current||0} / ${p.total}`:(p.current?String(p.current):"");
   $("bar").value=p.total?100*(p.current||0)/p.total:0;
   $("dot").className=p.phase==="error"?"error":p.phase==="done"?"done":p.phase==="idle"?"idle":"active";
+  const busy=p.phase==="listing"||p.phase==="exporting";
+  $("export").disabled=busy;
+  $("export").textContent=busy?"导出中…":"开始导出";
+  $("browse").disabled=busy;
+  $("images").disabled=busy;
+  $("logout").disabled=busy;
   if(p.phase==="done"&&p.outputDir){
     lastOutputDir=p.outputDir;
     $("reveal").hidden=false;

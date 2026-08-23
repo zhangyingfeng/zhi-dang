@@ -2,6 +2,8 @@ const $=id=>document.getElementById(id); const readJson=async r=>{const text=awa
 const invoke=window.__TAURI__.core.invoke;
 let urlToken=null;
 let lastOutputDir=null;
+let loggedIn=false;
+let busy=false;
 
 let toastTimer=null;
 function showToast(message,isError){
@@ -11,6 +13,51 @@ function showToast(message,isError){
   t.hidden=false;
   clearTimeout(toastTimer);
   toastTimer=setTimeout(()=>{t.hidden=true},isError?5000:3000);
+}
+
+// Measures the page's own rendered height rather than using a guessed
+// constant, so the window always fits exactly (no scrollbar, no dead
+// space) regardless of font-rendering differences between the WKWebView
+// used in the packaged app and whatever this was last tuned against.
+//
+// Uses the last element's actual bottom position rather than
+// document.body.scrollHeight: <main>'s margin-top collapses through the
+// (border/padding-less) <body>, so scrollHeight silently undercounts it —
+// getBoundingClientRect() isn't fooled by margin collapse.
+//
+// A fixed allowance can't be trusted to always be enough (WKWebView's own
+// chrome/rendering can differ from what this was tuned against), so after
+// resizing once, re-check whether the viewport is still shorter than the
+// content and top up the difference if so, instead of guessing harder.
+async function resizeToContent(){
+  const titlebarAllowance=32;
+  const measureContent=()=>document.querySelector("footer").getBoundingClientRect().bottom;
+  const target=measureContent()+titlebarAllowance;
+  await invoke("resize_main_window",{height:target}).catch(()=>{});
+  await new Promise(r=>setTimeout(r,150));
+  const overflow=document.documentElement.scrollHeight-window.innerHeight;
+  if(overflow>0){
+    invoke("resize_main_window",{height:target+overflow+8}).catch(()=>{});
+  }
+}
+
+function syncControls(){
+  const disabled=!loggedIn||busy;
+  $("dir").disabled=disabled;
+  $("browse").disabled=disabled;
+  $("images").disabled=disabled;
+  $("export").disabled=disabled;
+  $("auth-btn").disabled=busy;
+}
+
+function setAuthUI(nextLoggedIn,name){
+  loggedIn=nextLoggedIn;
+  const btn=$("auth-btn");
+  btn.textContent=loggedIn?"退出登录":"开始登录";
+  btn.classList.toggle("secondary",loggedIn);
+  $("step-title").textContent=loggedIn?`欢迎 ${name||""}，可以下载`:"登录知乎导出";
+  $("auth-status").textContent=loggedIn?"所有内容和登录会话仅保存在这台电脑，不会上传到任何地方。":"本应用不会保存或上传用户名和密码";
+  syncControls();
 }
 
 // Relays knowledge-base fetches requested by the Node backend through the
@@ -30,33 +77,51 @@ async function relayFrontendFetches(){
 
 relayFrontendFetches();
 
-$("login").onclick=async()=>{
-  $("login").disabled=true;
+// On launch, silently check whether the login window already holds a valid
+// session (from a previous run) so the user only sees the login step when
+// they actually need it.
+(async()=>{
+  try{
+    const r=await invoke("check_login_status");
+    if(r.loggedIn){
+      urlToken=r.urlToken;
+      $("dir").value=urlToken||"exports";
+      $("status-section").hidden=false;
+      setAuthUI(true,r.name);
+      resizeToContent();
+      return;
+    }
+  }catch{}
+  setAuthUI(false);
+  resizeToContent();
+})();
+
+$("auth-btn").onclick=async()=>{
+  if(loggedIn){
+    $("auth-btn").disabled=true;
+    try{ await invoke("logout"); }catch(e){ showToast(e.message||String(e),true); }
+    urlToken=null;
+    lastOutputDir=null;
+    $("reveal").hidden=true;
+    $("status-section").hidden=true;
+    setAuthUI(false);
+    resizeToContent();
+    showToast("已退出登录");
+    return;
+  }
+  $("auth-btn").disabled=true;
   try{
     await invoke("open_login_window");
     const result=await invoke("wait_for_login");
     urlToken=result.urlToken;
     $("dir").value=urlToken||"exports";
-    $("step-login").style.display="none";
-    $("step-export").style.display="";
     $("status-section").hidden=false;
-    invoke("resize_main_window",{height:500}).catch(()=>{});
+    setAuthUI(true,result.name);
+    resizeToContent();
   }catch(e){
     showToast(e.message||String(e),true);
-    $("login").disabled=false;
+    $("auth-btn").disabled=false;
   }
-};
-$("logout").onclick=async()=>{
-  try{ await invoke("logout"); }catch(e){ showToast(e.message||String(e),true); }
-  urlToken=null;
-  lastOutputDir=null;
-  $("reveal").hidden=true;
-  $("step-export").style.display="none";
-  $("step-login").style.display="";
-  $("status-section").hidden=true;
-  $("login").disabled=false;
-  invoke("resize_main_window",{height:280}).catch(()=>{});
-  showToast("已退出登录");
 };
 $("browse").onclick=async()=>{
   try{
@@ -70,10 +135,9 @@ $("export").onclick=async()=>{
   }
   if(!urlToken){
     showToast("登录状态已丢失，请重新登录。",true);
-    $("step-login").style.display=""; $("step-export").style.display="none";
     $("status-section").hidden=true;
-    $("login").disabled=false;
-    invoke("resize_main_window",{height:280}).catch(()=>{});
+    setAuthUI(false);
+    resizeToContent();
     return;
   }
   $("reveal").hidden=true;
@@ -89,12 +153,9 @@ setInterval(async()=>{try{
   $("count").textContent=p.total?`${p.current||0} / ${p.total}`:(p.current?String(p.current):"");
   $("bar").value=p.total?100*(p.current||0)/p.total:0;
   $("dot").className=p.phase==="error"?"error":p.phase==="done"?"done":p.phase==="idle"?"idle":"active";
-  const busy=p.phase==="listing"||p.phase==="exporting";
-  $("export").disabled=busy;
+  const nextBusy=p.phase==="listing"||p.phase==="exporting";
+  if(nextBusy!==busy){ busy=nextBusy; syncControls(); }
   $("export").textContent=busy?"导出中…":"开始导出";
-  $("browse").disabled=busy;
-  $("images").disabled=busy;
-  $("logout").disabled=busy;
   if(p.phase==="done"&&p.outputDir){
     lastOutputDir=p.outputDir;
     $("reveal").hidden=false;

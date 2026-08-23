@@ -7,6 +7,7 @@ use tauri_plugin_shell::ShellExt;
 use tokio::sync::oneshot;
 
 const APP_URL: &str = "http://127.0.0.1:4317";
+const ZHIHU_SIGNIN_URL: &str = "https://www.zhihu.com/signin";
 
 /// Creates the main window pointed at the local Express server. In `tauri dev`
 /// that server is already running (started by `beforeDevCommand`); in a
@@ -15,8 +16,27 @@ fn create_main_window(app: &tauri::AppHandle) -> tauri::Result<()> {
   let url = APP_URL.parse().expect("APP_URL is a valid URL");
   WebviewWindowBuilder::new(app, "main", WebviewUrl::External(url))
     .title("知档")
-    .inner_size(760.0, 280.0)
-    .min_inner_size(640.0, 280.0)
+    .inner_size(760.0, 460.0)
+    // The window's height is always kept in sync with the page's actual
+    // rendered content via `resize_main_window` (see app.js's
+    // `resizeToContent`). Letting the user drag-resize it independently
+    // would desync the two and either clip content (scrollbar) or leave
+    // dead space, so resizing is programmatic only.
+    .resizable(false)
+    .build()?;
+  Ok(())
+}
+
+/// Creates the embedded Zhihu login window up front, hidden, so its page
+/// context is already live when the app checks for an existing session on
+/// startup (see `check_login_status`) — not just after the user clicks
+/// "开始登录".
+fn create_login_window(app: &tauri::AppHandle) -> tauri::Result<()> {
+  let url = ZHIHU_SIGNIN_URL.parse().expect("ZHIHU_SIGNIN_URL is a valid URL");
+  WebviewWindowBuilder::new(app, "login", WebviewUrl::External(url))
+    .visible(false)
+    .inner_size(1000.0, 760.0)
+    .min_inner_size(760.0, 560.0)
     .build()?;
   Ok(())
 }
@@ -60,15 +80,18 @@ struct PendingFetches {
   senders: Mutex<HashMap<u64, oneshot::Sender<(u16, String)>>>,
 }
 
-/// Opens (or focuses, if already open) the embedded Zhihu login window.
+/// Shows and focuses the embedded Zhihu login window. The window itself is
+/// created once, hidden, at startup (`create_login_window`) — this just
+/// brings it forward; the `build()` fallback below only matters if that
+/// initial creation somehow failed.
 #[tauri::command]
-async fn open_login_window(app: tauri::AppHandle) -> Result<(), String> {
+fn open_login_window(app: tauri::AppHandle) -> Result<(), String> {
   if let Some(win) = app.get_webview_window("login") {
     win.show().map_err(|e| e.to_string())?;
     win.set_focus().map_err(|e| e.to_string())?;
     return Ok(());
   }
-  let url = "https://www.zhihu.com/signin"
+  let url = ZHIHU_SIGNIN_URL
     .parse()
     .map_err(|e: url::ParseError| e.to_string())?;
   WebviewWindowBuilder::new(&app, "login", WebviewUrl::External(url))
@@ -152,17 +175,29 @@ fn zhihu_fetch_result(state: tauri::State<'_, PendingFetches>, id: u64, status: 
   }
 }
 
-async fn fetch_url_token(app: &tauri::AppHandle, state: &PendingFetches) -> Result<Option<String>, String> {
-  let (status, body) =
-    do_zhihu_fetch(app, state, "https://www.zhihu.com/api/v4/me?include=url_token").await?;
+/// Fetches (url_token, display name) for the account behind the login
+/// window's current session, or `None` if it isn't logged in. `Err` means
+/// the request itself couldn't be made (e.g. the login window's page hasn't
+/// finished loading yet) — distinct from a clean "not logged in" response.
+async fn fetch_account_info(
+  app: &tauri::AppHandle,
+  state: &PendingFetches,
+) -> Result<Option<(String, String)>, String> {
+  let (status, body) = do_zhihu_fetch(
+    app,
+    state,
+    "https://www.zhihu.com/api/v4/me?include=url_token,name",
+  )
+  .await?;
   if status != 200 {
     return Ok(None);
   }
-  Ok(
-    serde_json::from_str::<serde_json::Value>(&body)
-      .ok()
-      .and_then(|v| v.get("url_token").and_then(|t| t.as_str().map(String::from))),
-  )
+  let Ok(v) = serde_json::from_str::<serde_json::Value>(&body) else {
+    return Ok(None);
+  };
+  let url_token = v.get("url_token").and_then(|t| t.as_str()).map(String::from);
+  let name = v.get("name").and_then(|t| t.as_str()).map(String::from);
+  Ok(url_token.zip(name))
 }
 
 /// Checks login status by fetching the account endpoint from inside the page.
@@ -171,8 +206,36 @@ async fn zhihu_me(
   app: tauri::AppHandle,
   state: tauri::State<'_, PendingFetches>,
 ) -> Result<serde_json::Value, String> {
-  let url_token = fetch_url_token(&app, &state).await?;
-  Ok(serde_json::json!({ "urlToken": url_token }))
+  match fetch_account_info(&app, &state).await? {
+    Some((url_token, name)) => Ok(serde_json::json!({ "urlToken": url_token, "name": name })),
+    None => Ok(serde_json::json!({ "urlToken": null, "name": null })),
+  }
+}
+
+/// Called once on startup to detect whether the login window already holds
+/// a valid session, so the app can skip the login step entirely on repeat
+/// launches. Retries briefly to cover the window where the (hidden) login
+/// window's page is still loading right after app start; a clean non-200
+/// response (genuinely not logged in) returns immediately without retrying.
+#[tauri::command]
+async fn check_login_status(
+  app: tauri::AppHandle,
+  state: tauri::State<'_, PendingFetches>,
+) -> Result<serde_json::Value, String> {
+  const ATTEMPTS: u32 = 6;
+  for attempt in 0..ATTEMPTS {
+    match fetch_account_info(&app, &state).await {
+      Ok(Some((url_token, name))) => {
+        return Ok(serde_json::json!({ "loggedIn": true, "urlToken": url_token, "name": name }));
+      }
+      Ok(None) => return Ok(serde_json::json!({ "loggedIn": false })),
+      Err(_) if attempt + 1 < ATTEMPTS => {
+        tokio::time::sleep(Duration::from_millis(400)).await;
+      }
+      Err(_) => return Ok(serde_json::json!({ "loggedIn": false })),
+    }
+  }
+  Ok(serde_json::json!({ "loggedIn": false }))
 }
 
 /// Polls the login window until Zhihu reports a logged-in account, then shows
@@ -187,7 +250,7 @@ async fn wait_for_login(
     if app.get_webview_window("login").is_none() {
       return Err("登录窗口已关闭，请重新点击登录。".to_string());
     }
-    if let Some(token) = fetch_url_token(&app, &state).await.unwrap_or(None) {
+    if let Some((url_token, name)) = fetch_account_info(&app, &state).await.unwrap_or(None) {
       if let Some(win) = app.get_webview_window("login") {
         let banner = r#"(() => {
           if (document.getElementById('zd-login-ok')) return;
@@ -206,7 +269,7 @@ async fn wait_for_login(
         })();"#;
         let _ = win.eval(banner);
       }
-      return Ok(serde_json::json!({ "urlToken": token }));
+      return Ok(serde_json::json!({ "urlToken": url_token, "name": name }));
     }
     if tokio::time::Instant::now() >= deadline {
       return Err("等待登录超时，请重新点击登录。".to_string());
@@ -221,7 +284,7 @@ async fn wait_for_login(
 fn logout(app: tauri::AppHandle) -> Result<(), String> {
   if let Some(win) = app.get_webview_window("login") {
     win.clear_all_browsing_data().map_err(|e| e.to_string())?;
-    let url = "https://www.zhihu.com/signin"
+    let url = ZHIHU_SIGNIN_URL
       .parse()
       .map_err(|e: url::ParseError| e.to_string())?;
     win.navigate(url).map_err(|e| e.to_string())?;
@@ -248,6 +311,7 @@ pub fn run() {
         spawn_backend_sidecar(app.handle())?;
         create_main_window(app.handle())?;
       }
+      create_login_window(app.handle())?;
       Ok(())
     })
     .manage(PendingFetches::default())
@@ -259,7 +323,8 @@ pub fn run() {
       zhihu_me,
       wait_for_login,
       resize_main_window,
-      logout
+      logout,
+      check_login_status
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");

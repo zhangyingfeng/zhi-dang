@@ -69,7 +69,7 @@
 
 ## 阶段 2：降低安装和使用门槛
 
-**状态：核心已完成，收尾中**
+**状态：已完成，1.0.0 已发布**
 
 0.3.x 版本需要用户准备 Node.js、npm、Git 和 Chrome。`v1-tauri` 分支已经把应用重写为基于 [Tauri](https://tauri.app) 的独立桌面应用：知乎登录改为内嵌窗口完成，后端用 [Bun](https://bun.sh) 编译成独立可执行文件随应用打包，普通用户不再需要安装 Node.js、Chrome 或运行任何命令。目标用户流程已经落地：
 
@@ -88,14 +88,15 @@
 - 登录状态只保存在本机（由系统 WebView 管理）；已完成；
 - 用户能够清除保存的登录数据；已完成——应用内置"退出登录"；
 - 不因为桌面化引入云端账号、遥测或用户内容上传；已完成；
-- macOS 和 Windows 至少完成干净环境测试。**未完成**——目前只在 macOS（Apple Silicon）上做过完整测试，Windows、Linux 和 Intel Mac 尚未验证。
+- macOS 和 Windows 至少完成干净环境测试。**部分完成**——目前只在 macOS（Apple Silicon）上做过完整测试；1.0.0 以 macOS-only 发布，Windows、Linux 和 Intel Mac 留到后续版本。
 
-### 收尾工作
+`v1-tauri` 已合并到 `main`，[1.0.0 已正式发布](https://github.com/zhangyingfeng/zhi-dang/releases)。
+
+### 1.0.0 之后
 
 - Windows / Intel Mac / Linux 平台测试；
-- Apple 开发者签名，消除首次打开时的 Gatekeeper 警告；
-- 合并 `v1-tauri` 到 `main`，正式发布 1.0.0（当前仍是预发布版本，见 [Releases](https://github.com/zhangyingfeng/zhi-dang/releases)）；
-- 导出体验的暂停/继续能力仍在评估中，不阻塞 1.0 发布。
+- Apple 开发者签名 + 公证，消除首次打开时的 Gatekeeper 警告（目前用免费的 ad-hoc 签名，警告可以在系统设置里手动绕过，不阻塞使用，但不如正式签名顺滑）；
+- 导出体验从进度条改为可选择、可暂停续传的任务列表，仍在评估中。
 
 ## 阶段 3：从归档生成个人网站
 

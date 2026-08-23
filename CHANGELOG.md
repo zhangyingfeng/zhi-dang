@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.0
+
+First stable release of the Tauri-based desktop rewrite (`v1-tauri`), merged into `main`. Packaged as a standalone macOS app (Apple Silicon): no Node.js, npm, or Chrome install required. Everything below through preview.1 is the changelog of how this release was built — see those entries for the individual fixes and design decisions. Known limits at this release: macOS-only (Windows/Linux/Intel Mac untested), no Apple Developer notarization (Gatekeeper shows a dismissable "unidentified developer" prompt on first launch), and export runs to completion in one pass — pause/resume is planned for a later 1.x release.
+
 ## 1.0.0-preview.6
 
 - Fixed the packaged `.app` failing to open at all when downloaded normally (via a browser): it had no code signature covering the bundle as a whole (Rust's linker only signs the executable, leaving `Sealed Resources=none`), and on current macOS an unsigned, quarantined app is rejected outright ("已损坏，无法打开", no bypass) rather than showing the dismissable "unidentified developer" prompt. Set `bundle.macOS.signingIdentity: "-"` in `tauri.conf.json` so `tauri build` ad-hoc-signs the full bundle (including the sidecar) automatically; verified end to end with a real quarantine flag — now shows the expected two-step Gatekeeper prompt ("系统设置 → 隐私与安全性 → 仍要打开") instead of failing outright. **preview.5's published `.app`/`.dmg` are affected by this bug and should not be used — see its release notes.**

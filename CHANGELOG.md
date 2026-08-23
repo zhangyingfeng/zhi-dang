@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Made the export-settings screen the app's primary view instead of a separate login step: on launch the app now silently checks for an existing session (the login window is created hidden at startup rather than only on click), so a returning user who hasn't logged out skips straight to a usable screen. When not logged in, export controls are disabled and a single title-bar button ("开始登录") is the primary action; after signing in it becomes a secondary "退出登录" button and the heading reads "欢迎 {name}，可以下载".
+- Fixed the main window's height calculation: it's now measured from the actual rendered content (last element's `getBoundingClientRect`, not `body.scrollHeight` — the latter silently drops `<main>`'s `margin-top` to CSS margin collapse) and re-checked/topped-up after resizing if still short, instead of guessed constants.
+- Made the main window non-resizable, since its height is fully content-driven — manual resizing just reintroduced clipped content / scrollbars.
+- Fixed unreadable button text: `AccentColorText` wasn't resolving to a usable color in this WKWebView, so button text switched to a literal white.
+
 ## 1.0.0-preview.4
 
 UI/UX pass on top of the preview.3 rewrite, plus account switching and the documentation rewrite that preview.1 flagged as a known gap.

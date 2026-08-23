@@ -16,6 +16,7 @@
     "allow-wait-for-login",
     "allow-resize-main-window",
     "allow-logout",
+    "allow-check-login-status",
     "dialog:allow-open",
     "opener:allow-reveal-item-in-dir"
   ]

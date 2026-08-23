@@ -9,6 +9,7 @@ fn main() {
       "wait_for_login",
       "resize_main_window",
       "logout",
+      "check_login_status",
     ]),
   ))
   .expect("failed to run tauri-build");

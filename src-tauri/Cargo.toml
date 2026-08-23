@@ -1,6 +1,6 @@
 [package]
 name = "app"
-version = "1.0.0-preview.6"
+version = "1.0.0"
 description = "知档桌面客户端"
 authors = ["zhangyingfeng"]
 license = "Unlicense"

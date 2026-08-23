@@ -28,6 +28,9 @@ export async function paginateListing(kind:ContentKind,startUrl:string,fetchPage
     onCount?.(output.length);
     if(page.paging.is_end){ completed=true; break; }
     if(!page.paging.next) throw new Error("知乎分页数据不完整：尚未结束但缺少下一页地址。");
+    // Zhihu's paging.next is sometimes http:// even though the page is https —
+    // fetched from inside the login window's page context, that gets blocked
+    // as mixed content, so it has to be upgraded before the next request.
     url=page.paging.next.replace(/^http:\/\//,"https://"); await sleep(delayMs);
   }
   if(!completed) throw new Error("知乎分页超过安全上限，导出已停止以避免生成不完整归档。");

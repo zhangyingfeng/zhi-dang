@@ -34,6 +34,7 @@ fn create_main_window(app: &tauri::AppHandle) -> tauri::Result<()> {
 fn create_login_window(app: &tauri::AppHandle) -> tauri::Result<()> {
   let url = ZHIHU_SIGNIN_URL.parse().expect("ZHIHU_SIGNIN_URL is a valid URL");
   WebviewWindowBuilder::new(app, "login", WebviewUrl::External(url))
+    .title("知档 - 登录知乎")
     .visible(false)
     .inner_size(1000.0, 760.0)
     .min_inner_size(760.0, 560.0)
@@ -95,6 +96,7 @@ fn open_login_window(app: tauri::AppHandle) -> Result<(), String> {
     .parse()
     .map_err(|e: url::ParseError| e.to_string())?;
   WebviewWindowBuilder::new(&app, "login", WebviewUrl::External(url))
+    .title("知档 - 登录知乎")
     .inner_size(1000.0, 760.0)
     .min_inner_size(760.0, 560.0)
     .build()

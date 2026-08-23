@@ -42,7 +42,14 @@ export class Exporter {
 type ImageFailure={itemId:string;url:string;error:string};
 type ItemFailure={itemId:string;kind:string;title:string;error:string};
 
+// Naming by content hash (not source URL) means images reused across posts,
+// or served from different CDN URLs with identical bytes, collapse to one
+// file automatically instead of being downloaded and stored redundantly.
 export function imageFileName(body:Buffer,contentType:string){ const type=contentType.toLowerCase().split(";",1)[0]; const ext:Record<string,string>={"image/png":"png","image/jpeg":"jpg","image/gif":"gif","image/webp":"webp","image/svg+xml":"svg","image/avif":"avif"}; const hash=createHash("sha256").update(body).digest("hex"); return `${hash}.${ext[type]??"bin"}`; }
+// Zhihu's HTML lazy-loads images: the real URL is in data-original or
+// data-actualsrc, with src pointing at a placeholder, and a <noscript> tag
+// duplicating the same <img> as a no-JS fallback. Without this, downloading
+// would fetch placeholder blobs and the same image would appear twice.
 export function normalizeImageSources(html:string){
   const withoutFallbacks=html.replace(/<noscript\b[^>]*>[\s\S]*?<\/noscript>/gi,"");
   return withoutFallbacks.replace(/<img\b[^>]*>/gi,tag=>{const get=(name:string)=>new RegExp(`\\s${name}=["']([^"']+)["']`,"i").exec(tag)?.[1];const source=get("data-original")||get("data-actualsrc")||get("src");if(!source||source.startsWith("data:"))return "";let clean=tag.replace(/\s(?:data-original|data-actualsrc)=["'][^"']*["']/gi,"");if(/\ssrc=["']/i.test(clean))clean=clean.replace(/\ssrc=["'][^"']*["']/i,` src="${source}"`);else clean=clean.replace(/^<img/i,`<img src="${source}"`);return clean;});

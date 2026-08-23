@@ -1,3 +1,10 @@
+// Zhihu API calls can't be made directly from this Node process: the only
+// valid session lives inside the Tauri login window's own page context (see
+// do_zhihu_fetch in src-tauri/src/lib.rs), so requests have to be relayed
+// there and back. This module is the Node-side half of that relay — a long-
+// poll queue the frontend drains via GET /api/frontend-fetch-request, runs
+// through the login window's fetch(), and reports back via
+// POST /api/frontend-fetch-result.
 import type { ApiPage, PageFetcher } from "./zhihu.js";
 
 interface QueuedRequest { id: number; url: string }

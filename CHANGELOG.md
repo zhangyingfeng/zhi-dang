@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.0-preview.6
+
+- Fixed the packaged `.app` failing to open at all when downloaded normally (via a browser): it had no code signature covering the bundle as a whole (Rust's linker only signs the executable, leaving `Sealed Resources=none`), and on current macOS an unsigned, quarantined app is rejected outright ("已损坏，无法打开", no bypass) rather than showing the dismissable "unidentified developer" prompt. Set `bundle.macOS.signingIdentity: "-"` in `tauri.conf.json` so `tauri build` ad-hoc-signs the full bundle (including the sidecar) automatically; verified end to end with a real quarantine flag — now shows the expected two-step Gatekeeper prompt ("系统设置 → 隐私与安全性 → 仍要打开") instead of failing outright. **preview.5's published `.app`/`.dmg` are affected by this bug and should not be used — see its release notes.**
+
 ## 1.0.0-preview.5
 
 - Made the export-settings screen the app's primary view instead of a separate login step: on launch the app now silently checks for an existing session (the login window is created hidden at startup rather than only on click), so a returning user who hasn't logged out skips straight to a usable screen. When not logged in, export controls are disabled and a single title-bar button ("开始登录") is the primary action; after signing in it becomes a secondary "退出登录" button and the heading reads "欢迎 {name}，可以下载".

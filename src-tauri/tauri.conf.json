@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "知档",
-  "version": "1.0.0-preview.5",
+  "version": "1.0.0-preview.6",
   "identifier": "com.zhangyingfeng.zhidang",
   "build": {
     "frontendDist": "../public",
@@ -30,6 +30,9 @@
     "externalBin": ["binaries/zhidang-server"],
     "android": {
       "debugApplicationIdSuffix": ".debug"
+    },
+    "macOS": {
+      "signingIdentity": "-"
     }
   }
 }

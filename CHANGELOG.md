@@ -1,11 +1,13 @@
 # Changelog
 
-## Unreleased
+## 1.0.0-preview.5
 
 - Made the export-settings screen the app's primary view instead of a separate login step: on launch the app now silently checks for an existing session (the login window is created hidden at startup rather than only on click), so a returning user who hasn't logged out skips straight to a usable screen. When not logged in, export controls are disabled and a single title-bar button ("开始登录") is the primary action; after signing in it becomes a secondary "退出登录" button and the heading reads "欢迎 {name}，可以下载".
 - Fixed the main window's height calculation: it's now measured from the actual rendered content (last element's `getBoundingClientRect`, not `body.scrollHeight` — the latter silently drops `<main>`'s `margin-top` to CSS margin collapse) and re-checked/topped-up after resizing if still short, instead of guessed constants.
 - Made the main window non-resizable, since its height is fully content-driven — manual resizing just reintroduced clipped content / scrollbars.
 - Fixed unreadable button text: `AccentColorText` wasn't resolving to a usable color in this WKWebView, so button text switched to a literal white.
+- Fixed the app icon rendering with sharp corners in the Dock: it was full-bleed with no self-drawn radius on the assumption that macOS applies its own squircle mask uniformly, but real-world testing showed that isn't reliable. Baked the corner radius into the source image directly instead.
+- Synced README and the troubleshooting guide with the login-as-gate restructure above.
 
 ## 1.0.0-preview.4
 

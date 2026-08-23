@@ -44,7 +44,10 @@ button{
 button:last-child{margin-right:0}
 button:hover{filter:brightness(1.08)}
 button:active{filter:brightness(.9);transform:scale(.98)}
-button[disabled]{opacity:.5;cursor:default;transform:none;filter:none}
+button[disabled]{
+  opacity:.5;cursor:default;transform:none;filter:none;
+  background:color-mix(in srgb,CanvasText 8%,Canvas);color:color-mix(in srgb,CanvasText 35%,Canvas);
+}
 .secondary{background:color-mix(in srgb,CanvasText 8%,Canvas);color:CanvasText}
 .secondary:hover{background:color-mix(in srgb,CanvasText 12%,Canvas)}
 .secondary:active{background:color-mix(in srgb,CanvasText 18%,Canvas)}

@@ -123,6 +123,24 @@ $("auth-btn").onclick=async()=>{
     $("auth-btn").disabled=false;
   }
 };
+function openAbout(){
+  $("about-overlay").hidden=false;
+  fetch("/api/about").then(readJson).then(({version})=>{ $("about-version").textContent=version; }).catch(()=>{});
+}
+function closeAbout(){ $("about-overlay").hidden=true; }
+$("about-btn").onclick=openAbout;
+$("about-close").onclick=closeAbout;
+$("about-overlay").onclick=(e)=>{ if(e.target.id==="about-overlay") closeAbout(); };
+document.addEventListener("keydown",(e)=>{ if(e.key==="Escape"&&!$("about-overlay").hidden) closeAbout(); });
+$("about-website").onclick=()=>{
+  invoke("plugin:opener|open_url",{url:"https://yingfeng.ca"}).catch(e=>showToast(e.message||String(e),true));
+};
+$("about-repo").onclick=()=>{
+  invoke("plugin:opener|open_url",{url:"https://github.com/zhangyingfeng/zhi-dang"}).catch(e=>showToast(e.message||String(e),true));
+};
+// Lets the macOS menu bar's "关于知档" item (see lib.rs's custom About menu
+// item) open this same in-page panel instead of a separate native dialog.
+window.__TAURI__.event.listen("show-about",openAbout);
 $("browse").onclick=async()=>{
   try{
     const selected=await invoke("plugin:dialog|open",{options:{directory:true,multiple:false,title:"选择保存位置"}});

@@ -2,7 +2,8 @@ use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Mutex;
 use std::time::Duration;
-use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
+use tauri::menu::{Menu, MenuItemBuilder, MenuItemKind};
+use tauri::{Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
 use tauri_plugin_shell::ShellExt;
 use tokio::sync::oneshot;
 
@@ -40,6 +41,31 @@ fn create_login_window(app: &tauri::AppHandle) -> tauri::Result<()> {
     .min_inner_size(760.0, 560.0)
     .build()?;
   Ok(())
+}
+
+/// Builds the default menu bar, but swaps the standard "About <App>" item for
+/// a custom one (id `show-about`) that the frontend can respond to with its
+/// own about panel instead of macOS's built-in dialog — see `on_menu_event`
+/// in `run()`. Everything else (Edit's cut/copy/paste, Window, etc.) stays
+/// exactly as `Menu::default` provides, since re-deriving those by hand would
+/// silently lose standard shortcut behavior.
+fn build_menu_with_custom_about(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
+  let menu = Menu::default(app)?;
+  if let Some(MenuItemKind::Submenu(app_submenu)) = menu.items()?.into_iter().next() {
+    let items = app_submenu.items()?;
+    let about_position = items.iter().position(|item| {
+      matches!(
+        item,
+        MenuItemKind::Predefined(p) if p.text().map(|t| t.contains("About")).unwrap_or(false)
+      )
+    });
+    if let Some(pos) = about_position {
+      app_submenu.remove_at(pos)?;
+      let about_item = MenuItemBuilder::with_id("show-about", "关于知档").build(app)?;
+      app_submenu.insert(&about_item, pos)?;
+    }
+  }
+  Ok(menu)
 }
 
 /// Grows (or shrinks) the main window's height to fit the current step, while
@@ -302,6 +328,15 @@ pub fn run() {
     .plugin(tauri_plugin_dialog::init())
     .plugin(tauri_plugin_opener::init())
     .setup(|app| {
+      let menu = build_menu_with_custom_about(app.handle())?;
+      app.set_menu(menu)?;
+      app.on_menu_event(|app, event| {
+        if *event.id() == "show-about" {
+          if let Some(win) = app.get_webview_window("main") {
+            let _ = win.emit("show-about", ());
+          }
+        }
+      });
       if cfg!(debug_assertions) {
         app.handle().plugin(
           tauri_plugin_log::Builder::default()

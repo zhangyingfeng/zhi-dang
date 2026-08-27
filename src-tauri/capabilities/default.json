@@ -18,6 +18,8 @@
     "allow-logout",
     "allow-check-login-status",
     "dialog:allow-open",
-    "opener:allow-reveal-item-in-dir"
+    "opener:allow-reveal-item-in-dir",
+    "opener:allow-open-url",
+    "opener:allow-default-urls"
   ]
 }

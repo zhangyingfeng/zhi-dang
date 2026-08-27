@@ -7,6 +7,10 @@ import { Exporter } from "./exporter.js";
 import { assertSafeEmptyOutputDir } from "./util.js";
 import { fetchViaFrontend, waitForFrontendRequest, submitFrontendResult } from "./frontendBridge.js";
 import type { Progress } from "./types.js";
+// Statically imported (not read from disk at runtime) so it's inlined at
+// compile time by both tsc and Bun's --compile — reading it from the
+// filesystem would break in the packaged app, where cwd isn't reliable.
+import pkg from "../package.json" with { type: "json" };
 
 const root=process.cwd();
 const isPackaged=!!process.env.ZHIDANG_PUBLIC_DIR;
@@ -18,6 +22,7 @@ const exportBase=isPackaged?path.join(os.homedir(),"Documents"):root;
 const exporter=new Exporter(); let progress:Progress={phase:"idle",message:"准备就绪"};
 const app=express(); app.use(express.json({limit:"10mb"})); app.use(express.static(publicDir));
 app.get("/api/status",(_req,res)=>res.json({progress}));
+app.get("/api/about",(_req,res)=>res.json({version:pkg.version}));
 app.get("/api/frontend-fetch-request",async(_req,res)=>{ const next=await waitForFrontendRequest(25000); res.json(next); });
 app.post("/api/frontend-fetch-result",(req,res)=>{ const parsed=z.object({id:z.number(),status:z.number(),body:z.string()}).safeParse(req.body); if(!parsed.success) return res.status(400).json({error:parsed.error.message}); submitFrontendResult(parsed.data.id,parsed.data.status,parsed.data.body); res.json({ok:true}); });
 app.post("/api/export",async(req,res)=>{ const parsed=z.object({outputDir:z.string().min(1).default("exports"),downloadImages:z.boolean().default(true),delayMs:z.number().min(300).max(10000).default(900),urlToken:z.string().min(1)}).safeParse(req.body); if(!parsed.success) return res.status(400).json({error:parsed.error.message}); if(progress.phase==="listing"||progress.phase==="exporting") return res.status(409).json({error:"已有导出任务正在运行"}); const out=path.resolve(exportBase,parsed.data.outputDir); try{await assertSafeEmptyOutputDir(out,[path.parse(out).root,os.homedir(),exportBase],[path.join(root,"node_modules"),path.join(root,"dist")]);}catch(e){return res.status(400).json({error:e instanceof Error?e.message:String(e)});} res.json({ok:true}); void (async()=>{try{progress={phase:"listing",message:"正在获取回答列表",current:0}; const answerResult=await paginateListing("answer",buildListingUrl("answer",parsed.data.urlToken),fetchViaFrontend,{onCount:n=>progress={phase:"listing",message:`已获取 ${n} 个回答`,current:n}}); progress={phase:"listing",message:"正在获取文章列表",current:0}; const articleResult=await paginateListing("article",buildListingUrl("article",parsed.data.urlToken),fetchViaFrontend,{onCount:n=>progress={phase:"listing",message:`已获取 ${n} 篇文章`,current:n}}); const answers=answerResult.items; const articles=articleResult.items; const items=[...answers,...articles].sort((a,b)=>b.created-a.created); await exporter.export(items,[answerResult.report,articleResult.report],{...parsed.data,outputDir:out},(i,total,title)=>progress={phase:"exporting",message:title,current:i,total}); const duplicateCount=answerResult.report.duplicates+articleResult.report.duplicates; progress={phase:"done",message:`完成：${answers.length} 个回答，${articles.length} 篇文章${duplicateCount?`；已去重 ${duplicateCount} 条重复记录`:""}`,current:items.length,total:items.length,outputDir:out};}catch(e){progress={phase:"error",message:e instanceof Error?e.message:String(e)}}})(); });

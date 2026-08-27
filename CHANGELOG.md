@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Added a custom "关于" panel showing version, author, website, license, and source repo links. It's reachable both from a footer button and from the macOS menu bar's "About 知档" item — the two are unified: the menu bar's default `PredefinedMenuItem::about` is swapped out in `lib.rs` for a custom item that emits an event the frontend listens for, instead of leaving the app with two disconnected "about" surfaces.
+- Fixed the About panel's website link failing with "Not allowed to open url": `opener:allow-open-url` only permits calling the `open_url` command itself, not any particular URL — added the companion `opener:allow-default-urls` permission, which is the one that actually grants the `https://*` scope.
+- Fixed the About panel's website/source links rendering invisible: `color:AccentColor` doesn't reliably resolve to a visible color as *text* color in this WKWebView (the same class of bug as `AccentColorText` on buttons, see preview.5) — switched `.link-inline` to the app's own brand blue instead.
+- Relicensed from the Unlicense to the MIT License.
+
 ## 1.0.0
 
 First stable release of the Tauri-based desktop rewrite (`v1-tauri`), merged into `main`. Packaged as a standalone macOS app (Apple Silicon): no Node.js, npm, or Chrome install required. Everything below through preview.1 is the changelog of how this release was built — see those entries for the individual fixes and design decisions. Known limits at this release: macOS-only (Windows/Linux/Intel Mac untested), no Apple Developer notarization (Gatekeeper shows a dismissable "unidentified developer" prompt on first launch), and export runs to completion in one pass — pause/resume is planned for a later 1.x release.

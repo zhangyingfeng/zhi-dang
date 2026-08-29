@@ -14,7 +14,7 @@ main{width:min(640px,calc(100% - 32px));margin:64px auto}
   border-radius:12px;overflow:hidden;
   box-shadow:0 0 0 1px color-mix(in srgb,CanvasText 10%,transparent);
 }
-.step{display:grid;grid-template-columns:1fr;gap:14px;padding:22px 24px}
+.step{display:grid;grid-template-columns:1fr;gap:10px;padding:16px 20px}
 .step+.step{border-top:1px solid color-mix(in srgb,CanvasText 10%,transparent)}
 .step h2{margin:0;font-size:15px;font-weight:600}
 .step-head{display:flex;align-items:center;justify-content:space-between}
@@ -22,7 +22,7 @@ main{width:min(640px,calc(100% - 32px));margin:64px auto}
 .step p{margin:0;color:color-mix(in srgb,CanvasText 55%,Canvas);line-height:1.5}
 
 label{display:block;margin:0;color:color-mix(in srgb,CanvasText 80%,Canvas);font-size:13px}
-label+label{margin-top:14px}
+.dir-label{flex-shrink:0}
 input:not([type=checkbox]){
   display:block;width:100%;margin-top:6px;padding:6px 9px;font-size:13px;
   border:1px solid color-mix(in srgb,CanvasText 18%,transparent);border-radius:6px;
@@ -32,7 +32,7 @@ input:not([type=checkbox]):focus{
   outline:none;border-color:AccentColor;
   box-shadow:0 0 0 3px color-mix(in srgb,AccentColor 25%,transparent);
 }
-.check{display:flex;align-items:center;gap:7px;margin-top:14px}
+.check{display:flex;align-items:center;gap:7px}
 .hint{margin:6px 0 0;color:color-mix(in srgb,CanvasText 45%,Canvas);font-size:12px;line-height:1.5}
 
 button{
@@ -52,26 +52,80 @@ button[disabled]{
 .secondary:hover{background:color-mix(in srgb,CanvasText 12%,Canvas)}
 .secondary:active{background:color-mix(in srgb,CanvasText 18%,Canvas)}
 
-.dir-row{display:flex;gap:8px;margin-top:6px}
+.dir-row{display:flex;align-items:center;gap:8px}
 .dir-row input{margin-top:0;flex:1}
 .dir-row button{margin:0}
 
-.actions{margin-top:4px}
-.step>button,.actions{justify-self:start}
+.actions{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.actions-buttons{display:flex}
+.step>button{justify-self:start}
 
-.status{display:flex;gap:14px;margin-top:16px;padding:18px 20px;background:#22231f;color:#fff;border-radius:12px}
+.status{
+  display:flex;gap:14px;margin-top:16px;padding:18px 20px;border-radius:12px;
+  background:color-mix(in srgb,CanvasText 4%,Canvas);color:CanvasText;
+  box-shadow:0 0 0 1px color-mix(in srgb,CanvasText 10%,transparent);
+}
 .status[hidden]{display:none}
 .status>div{flex:1}
 .status strong{display:block;font-size:13px;font-weight:600}
-.status small{color:#a6a49c;font-size:12px}
-.status span{width:8px;height:8px;border-radius:50%;margin-top:4px;background:#5a584f;flex-shrink:0}
-.status span.idle{background:#5a584f}
+.status small{color:color-mix(in srgb,CanvasText 50%,Canvas);font-size:12px}
+.status span{width:8px;height:8px;border-radius:50%;margin-top:4px;background:color-mix(in srgb,CanvasText 25%,Canvas);flex-shrink:0}
+.status span.idle{background:color-mix(in srgb,CanvasText 25%,Canvas)}
 .status span.active{background:#4b9bf5;animation:pulse 1.4s ease-in-out infinite}
-.status span.done{background:#6fdd8b}
-.status span.error{background:#ff6b6b}
+.status span.done{background:#3ea55c}
+.status span.error{background:#e5484d}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
 
-progress{display:block;width:100%;height:4px;margin:10px 0 4px;border-radius:2px}
+/* -webkit-appearance:none strips the native track/border chrome (which adds
+   height beyond what `height` alone controls and doesn't follow the page's
+   adaptive colors), so the two pseudo-elements below are what actually
+   render the bar. */
+progress{-webkit-appearance:none;appearance:none;display:block;width:100%;height:4px;margin:10px 0 4px;border:0;border-radius:2px;overflow:hidden}
+progress::-webkit-progress-bar{background:color-mix(in srgb,CanvasText 12%,Canvas);border-radius:2px}
+progress::-webkit-progress-value{background:AccentColor;border-radius:2px;transition:width .2s ease}
+
+.task-list{
+  margin-top:14px;max-height:220px;overflow-y:auto;border-radius:10px;
+  background:color-mix(in srgb,CanvasText 3%,Canvas);
+  box-shadow:0 0 0 1px color-mix(in srgb,CanvasText 10%,transparent);
+}
+.task-list[hidden]{display:none}
+.task-item{border-bottom:1px solid color-mix(in srgb,CanvasText 8%,transparent)}
+.task-item:last-child{border-bottom:0}
+.task-row{display:flex;align-items:center;gap:8px;padding:7px 12px;font-size:12px}
+.task-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;background:color-mix(in srgb,CanvasText 25%,Canvas)}
+.task-dot.active{background:#4b9bf5;animation:pulse 1.4s ease-in-out infinite}
+.task-dot.done{background:#3ea55c}
+.task-dot.error{background:#e5484d}
+.task-kind{
+  flex-shrink:0;font-size:10px;padding:1px 6px;border-radius:8px;
+  background:color-mix(in srgb,CanvasText 6%,Canvas);color:color-mix(in srgb,CanvasText 50%,Canvas);
+}
+.task-title{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:CanvasText}
+/* Read-only exact-duplicate hint (see src/util.ts's contentHash) — an amber
+   tint distinct from the neutral kind badge, mixed against CanvasText (not
+   a fixed text color) so it stays legible in both themes. */
+.task-dup{
+  flex-shrink:0;font-size:10px;padding:1px 6px;border-radius:8px;
+  background:color-mix(in srgb,#eda100 22%,Canvas);color:color-mix(in srgb,#eda100 65%,CanvasText);
+}
+/* Reserved for per-item management controls (pause/skip, duplicate-merge,
+   resume) in a later pass — the expand toggle is the first thing to live
+   here so that later additions don't need to redo the row layout. */
+.task-actions{flex-shrink:0;display:flex;align-items:center;gap:4px}
+.task-expand{
+  background:transparent;padding:2px 7px;margin:0;font-size:10px;line-height:1.4;
+  color:color-mix(in srgb,CanvasText 45%,Canvas);border-radius:5px;
+}
+.task-expand:hover{background:color-mix(in srgb,CanvasText 8%,Canvas);color:CanvasText;filter:none}
+.task-expand:active{filter:none;transform:none}
+
+.task-detail{padding:0 12px 8px 27px}
+.task-detail[hidden]{display:none}
+.task-detail-row{display:flex;align-items:center;gap:6px;padding:3px 0;font-size:11px;color:color-mix(in srgb,CanvasText 55%,Canvas)}
+.task-image-list{margin:0 0 4px 13px;display:flex;flex-direction:column;gap:3px}
+.task-image-row{display:flex;align-items:center;gap:6px;font-size:10px;color:color-mix(in srgb,CanvasText 45%,Canvas)}
+.task-image-url{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
 
 footer{
   color:color-mix(in srgb,CanvasText 45%,Canvas);margin-top:18px;font-size:12px;line-height:1.6;

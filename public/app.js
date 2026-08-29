@@ -41,6 +41,95 @@ async function resizeToContent(){
   }
 }
 
+// Renders the per-item/per-subtask task list (see src/types.ts's ExportTask)
+// incrementally rather than rebuilding the DOM every poll: rows are created
+// once per item id and then only patched in place, so scrolling through a
+// long list — or an expanded detail panel — isn't reset out from under the
+// user every 1.2s.
+//
+// Row layout is deliberately minimal — status dot, kind badge, title, and an
+// actions slot (today just the expand toggle) — because that slot is where
+// per-item management controls (pause/skip, duplicate-merge, resume) land in
+// a later pass; subtask/image detail is demoted into a collapsed-by-default
+// panel instead of competing with those controls for space on the row.
+const statusLabel=s=>s==="active"?"进行中":s==="done"?"完成":s==="error"?"失败":"未开始";
+const subTaskLabel=key=>key==="images"?"图片":"写入";
+const taskRows=new Map();
+function clearTaskList(){
+  taskRows.clear();
+  $("task-list").replaceChildren();
+  $("task-list").hidden=true;
+}
+function buildTaskRow(t){
+  const item=document.createElement("div"); item.className="task-item";
+  const row=document.createElement("div"); row.className="task-row";
+  const dot=document.createElement("span"); dot.className="task-dot";
+  const kind=document.createElement("span"); kind.className="task-kind"; kind.textContent=t.kind==="answer"?"回答":"文章";
+  const title=document.createElement("span"); title.className="task-title"; title.textContent=t.title;
+  // Read-only hint only — exact-content duplicate candidates are flagged
+  // here so the user can see them, but no merge/skip action exists yet
+  // (that's a later "管理" pass); hidden by default, toggled in patchTaskRow.
+  const dup=document.createElement("span"); dup.className="task-dup"; dup.textContent="疑似重复"; dup.hidden=true;
+  const actions=document.createElement("span"); actions.className="task-actions";
+  const expandBtn=document.createElement("button"); expandBtn.type="button"; expandBtn.className="task-expand"; expandBtn.textContent="▸"; expandBtn.setAttribute("aria-label","展开详情");
+  actions.appendChild(expandBtn);
+  row.append(dot,kind,title,dup,actions);
+
+  const detail=document.createElement("div"); detail.className="task-detail"; detail.hidden=true;
+  const subEls=new Map();
+  for(const s of t.subtasks){
+    const subRow=document.createElement("div"); subRow.className="task-detail-row";
+    const subDot=document.createElement("span"); subDot.className="task-dot";
+    const subLabelEl=document.createElement("span"); subLabelEl.textContent=subTaskLabel(s.key);
+    subRow.append(subDot,subLabelEl); detail.appendChild(subRow);
+    const entry={dot:subDot,label:subLabelEl};
+    if(s.key==="images"){ const list=document.createElement("div"); list.className="task-image-list"; detail.appendChild(list); entry.list=list; entry.imageEls=new Map(); }
+    subEls.set(s.key,entry);
+  }
+  expandBtn.onclick=()=>{
+    const willExpand=detail.hidden;
+    detail.hidden=!willExpand; expandBtn.textContent=willExpand?"▾":"▸";
+    resizeToContent();
+  };
+  item.append(row,detail);
+  return {item,dot,dup,subEls};
+}
+function patchTaskRow(entry,t){
+  entry.dot.className="task-dot "+t.status;
+  entry.dot.title=statusLabel(t.status)+(t.error?`：${t.error}`:"");
+  entry.dup.hidden=!t.duplicate;
+  if(t.duplicate) entry.dup.title=`与 ${t.duplicate.otherTitles.length} 项内容完全一致：${t.duplicate.otherTitles.join("、")}`;
+  for(const s of t.subtasks){
+    const sub=entry.subEls.get(s.key); if(!sub) continue;
+    sub.dot.className="task-dot "+s.status; sub.dot.title=statusLabel(s.status);
+    sub.label.textContent=subTaskLabel(s.key)+(s.key==="images"&&s.images?` (${s.images.length})`:"");
+    if(s.key!=="images"||!s.images) continue;
+    for(const img of s.images){
+      let ie=sub.imageEls.get(img.url);
+      if(!ie){
+        const row=document.createElement("div"); row.className="task-image-row";
+        const dot=document.createElement("span"); dot.className="task-dot";
+        const label=document.createElement("span"); label.className="task-image-url"; label.textContent=img.url;
+        row.append(dot,label); sub.list.appendChild(row);
+        ie={dot,label}; sub.imageEls.set(img.url,ie);
+      }
+      ie.dot.className="task-dot "+img.status; ie.dot.title=statusLabel(img.status)+(img.error?`：${img.error}`:"");
+      ie.label.title=img.url+(img.error?`\n${img.error}`:"");
+    }
+  }
+}
+function renderTasks(tasks){
+  const list=$("task-list");
+  const wasHidden=list.hidden;
+  if(!tasks||!tasks.length){ if(!wasHidden){ list.hidden=true; resizeToContent(); } return; }
+  for(const t of tasks){
+    let entry=taskRows.get(t.id);
+    if(!entry){ entry=buildTaskRow(t); list.appendChild(entry.item); taskRows.set(t.id,entry); }
+    patchTaskRow(entry,t);
+  }
+  if(wasHidden){ list.hidden=false; resizeToContent(); }
+}
+
 function syncControls(){
   const disabled=!loggedIn||busy;
   $("dir").disabled=disabled;
@@ -56,7 +145,11 @@ function setAuthUI(nextLoggedIn,name){
   btn.textContent=loggedIn?"退出登录":"开始登录";
   btn.classList.toggle("secondary",loggedIn);
   $("step-title").textContent=loggedIn?`欢迎 ${name||""}，可以下载`:"登录知乎导出";
-  $("auth-status").textContent=loggedIn?"所有内容和登录会话仅保存在这台电脑，不会上传到任何地方。":"本应用不会保存或上传用户名和密码";
+  // Once logged in this line would just repeat the footer's identical
+  // sentence ("所有内容...不会上传到任何地方") — hide it instead of
+  // showing the same trust message twice and costing an extra row.
+  $("auth-status").hidden=loggedIn;
+  $("auth-status").textContent="本应用不会保存或上传用户名和密码";
   syncControls();
 }
 
@@ -159,6 +252,7 @@ $("export").onclick=async()=>{
     return;
   }
   $("reveal").hidden=true;
+  clearTaskList();
   post("/api/export",{outputDir:$("dir").value,downloadImages:$("images").checked,delayMs:900,urlToken}).catch(e=>showToast(e.message,true));
 };
 $("reveal").onclick=()=>{
@@ -171,6 +265,7 @@ setInterval(async()=>{try{
   $("count").textContent=p.total?`${p.current||0} / ${p.total}`:(p.current?String(p.current):"");
   $("bar").value=p.total?100*(p.current||0)/p.total:0;
   $("dot").className=p.phase==="error"?"error":p.phase==="done"?"done":p.phase==="idle"?"idle":"active";
+  renderTasks(p.tasks);
   const nextBusy=p.phase==="listing"||p.phase==="exporting";
   if(nextBusy!==busy){ busy=nextBusy; syncControls(); }
   $("export").textContent=busy?"导出中…":"开始导出";

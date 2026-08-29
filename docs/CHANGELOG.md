@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.1.0-preview.3
+
+Third and final slice of the 1.1 export-UX rework — the "完善" (stabilization) stage. Feature set is now frozen as the baseline for 1.2's signing work.
+
+- Resume into an existing output directory: pointing a new export at a directory this tool already wrote to (whether it finished cleanly last time or was interrupted) reuses whatever already succeeded instead of redoing it, and keeps previously-skipped items skipped. Only genuinely new or previously-failed items get (re)processed. This is a same-app-restart resume, not a background/always-on download — see docs/DEVELOPMENT.md.
+- `index.json`/`export-report.json`/`README.md` are now written after every item, not just once at the end, with atomic (temp-file + rename) writes — the mechanism that makes the above possible: an interrupted run leaves a real manifest behind instead of nothing.
+- The output-directory safety check now allows a non-empty directory if it's recognizably this tool's own (`export-report.json` present), instead of requiring empty.
+- UI polish from real-machine testing: the row expand toggle was a 10px glyph with almost no padding, now a proper ~24×23px tap target; the About panel's website link points at yingfeng.ca/zhi-dang instead of the bare domain; logging out resets the save-location field back to `exports` instead of leaving the previous account's username in it.
+
 ## 1.1.0-preview.2
 
 Second slice of the 1.1 export-UX rework — the "管理" (control) stage: adds control over an already-running export, on top of preview.1's read-only task list.

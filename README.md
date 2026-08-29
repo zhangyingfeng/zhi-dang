@@ -25,8 +25,8 @@
 - 遇到登录失效或安全验证时停止，由用户在登录窗口中正常完成验证。
 - 这是独立开发的非官方项目，与知乎不存在隶属、合作、授权或认可关系。
 
-使用者有责任遵守适用法律、著作权规则和平台条款。详见 [DISCLAIMER.md](DISCLAIMER.md) 和 [ACCEPTABLE_USE.md](ACCEPTABLE_USE.md)。
-开发计划见 [ROADMAP.md](ROADMAP.md)。
+使用者有责任遵守适用法律、著作权规则和平台条款。详见 [DISCLAIMER.md](docs/DISCLAIMER.md) 和 [ACCEPTABLE_USE.md](docs/ACCEPTABLE_USE.md)。
+开发计划见 [ROADMAP.md](docs/ROADMAP.md)。
 
 ## 如何安装使用？
 
@@ -37,7 +37,7 @@
 
 ## 开发者如何使用？
 
-从源码运行、构建、导出格式、隐私实现和故障排查见[开发者文档](docs/DEVELOPMENT.md)。贡献前请阅读 [CONTRIBUTING.md](CONTRIBUTING.md)。
+从源码运行、构建、导出格式、隐私实现和故障排查见[开发者文档](docs/DEVELOPMENT.md)。贡献前请阅读 [CONTRIBUTING.md](docs/CONTRIBUTING.md)。
 
 ## 参考与致谢
 

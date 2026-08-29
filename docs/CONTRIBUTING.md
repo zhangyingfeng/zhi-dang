@@ -12,7 +12,7 @@ npm run build
 
 - 一次PR解决一个清晰问题；
 - 说明行为变化和验证方法；
-- 修改导出字段时同步更新类型、[docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) 的"导出结构"、测试和`schemaVersion`；
+- 修改导出字段时同步更新类型、[DEVELOPMENT.md](DEVELOPMENT.md) 的"导出结构"、测试和`schemaVersion`；
 - 不提交真实账号、文章、图片、Cookie、Token、浏览器Profile或本地绝对路径；
 - 测试数据必须是虚构或自行创建的；
 - 不增加 [ACCEPTABLE_USE.md](ACCEPTABLE_USE.md) 排除的功能（验证码绕过、代理池、账号池、访问控制规避等）；

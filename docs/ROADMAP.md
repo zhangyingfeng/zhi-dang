@@ -50,7 +50,7 @@
 
 ### 隐私与安全
 
-标准见 [PRIVACY.md](PRIVACY.md)、[SECURITY.md](SECURITY.md) 和 [AGENTS.md](AGENTS.md)；这些是所有阶段都必须保持的底线，不在此重复列出。
+标准见 [PRIVACY.md](PRIVACY.md)、[SECURITY.md](SECURITY.md) 和 [AGENTS.md](../AGENTS.md)；这些是所有阶段都必须保持的底线，不在此重复列出。
 
 ### 验证标准
 

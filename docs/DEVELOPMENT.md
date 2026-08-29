@@ -30,7 +30,7 @@ npx tauri dev    # 启动完整桌面应用
 npx tauri build  # 打包独立 .app / .dmg
 ```
 
-贡献前请阅读 [CONTRIBUTING.md](../CONTRIBUTING.md)。使用 Codex 等编码工具维护时，请同时遵守 [AGENTS.md](../AGENTS.md) 中的仓库约束。
+贡献前请阅读 [CONTRIBUTING.md](CONTRIBUTING.md)。使用 Codex 等编码工具维护时，请同时遵守 [AGENTS.md](../AGENTS.md) 中的仓库约束。
 
 ## 导出结构
 
@@ -74,7 +74,7 @@ exports/
 - 导出索引不保存账号姓名、简介或账号标识。
 - 本地服务只监听 `127.0.0.1`，不对外暴露端口。
 
-完整说明见 [PRIVACY.md](../PRIVACY.md) 和 [SECURITY.md](../SECURITY.md)。
+完整说明见 [PRIVACY.md](PRIVACY.md) 和 [SECURITY.md](SECURITY.md)。
 
 ## 已知限制
 

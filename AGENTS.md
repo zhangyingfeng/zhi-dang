@@ -13,7 +13,7 @@ npm test
 npm run build
 ```
 
-For a user-visible bug fix, update `CHANGELOG.md`, `docs/BUGFIXES.md`, and the relevant section of `docs/TROUBLESHOOTING.md`.
+For a user-visible bug fix, update `docs/CHANGELOG.md`, `docs/BUGFIXES.md`, and the relevant section of `docs/TROUBLESHOOTING.md`.
 
 ## Privacy and safety invariants
 
@@ -21,7 +21,7 @@ For a user-visible bug fix, update `CHANGELOG.md`, `docs/BUGFIXES.md`, and the r
 - Never commit export directories, logs, screenshots from real accounts, or captured API responses containing user data. The login session itself lives in the OS WebView's own storage (e.g. `~/Library/WebKit/` on macOS), not in this repo's working tree — there is no `.data/browser-profile` in the current (`v1-tauri`) architecture.
 - Use synthetic fixtures only.
 - Do not add telemetry, analytics, remote logging, or upload services.
-- Do not implement CAPTCHA bypasses, access-control circumvention, proxy pools, account pools, or rate-limit evasion (see `ACCEPTABLE_USE.md`).
+- Do not implement CAPTCHA bypasses, access-control circumvention, proxy pools, account pools, or rate-limit evasion (see `docs/ACCEPTABLE_USE.md`).
 - Keep the server bound to `127.0.0.1`.
 - Never make `/api/status` call the third-party service on every UI poll.
 - Never overwrite a non-empty output directory without a separately reviewed migration design.

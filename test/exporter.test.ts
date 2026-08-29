@@ -1,7 +1,8 @@
 import test from "node:test"; import assert from "node:assert/strict";
 import { mkdtemp, readFile } from "node:fs/promises"; import os from "node:os"; import path from "node:path";
 import { Exporter } from "../src/exporter.js";
-import type { ExportControl, TaskEvent, ZhihuItem } from "../src/types.js";
+import { assertSafeOutputDir } from "../src/util.js";
+import type { ExportControl, ExportRecord, TaskEvent, ZhihuItem } from "../src/types.js";
 
 const tmpDir=()=>mkdtemp(path.join(os.tmpdir(),"export-test-"));
 const item=(id:string,overrides:Partial<ZhihuItem>={}):ZhihuItem=>({
@@ -46,4 +47,54 @@ test("skipping just the images subtask still writes the item, without downloadin
   const report=JSON.parse(await readFile(path.join(outputDir,"export-report.json"),"utf8"));
   assert.equal(report.summary.succeeded,1);
   assert.equal(report.summary.imageFailures,0);
+});
+
+test("a manifest is left behind after every item, not just at the end (so an interrupted run is still resumable)",async()=>{
+  const outputDir=await tmpDir(); const seenTotalsAtEachWrite:number[]=[];
+  // A real (if small) delayMs between items, so a short fixed wait after
+  // each "done" event is guaranteed to land strictly before the *next*
+  // item starts — otherwise a race between this check and the exporter's
+  // own next iteration could read a later item's state instead.
+  const control=freshControl();
+  const onEvent=async(e:TaskEvent)=>{
+    if(e.type!=="done") return;
+    await new Promise(r=>setTimeout(r,15));
+    try{ seenTotalsAtEachWrite.push(JSON.parse(await readFile(path.join(outputDir,"index.json"),"utf8")).summary.succeeded); }
+    catch{ seenTotalsAtEachWrite.push(-1); }
+  };
+  await new Exporter().export([item("1"),item("2"),item("3")],[],{outputDir,downloadImages:false,delayMs:80},e=>{ void onEvent(e); },control);
+  await new Promise(r=>setTimeout(r,30));
+  assert.deepEqual(seenTotalsAtEachWrite,[1,2,3],"index.json's succeeded count should climb with each item, not jump straight to 3");
+});
+
+test("resuming a directory replays already-finished items without redoing them, and merges in newly-finished ones",async()=>{
+  const outputDir=await tmpDir();
+  // Run 1: a full run of two items, one of which fails deliberately by
+  // pointing at an unwritable images directory... simpler: just complete
+  // both normally, then simulate a second, later run against the same
+  // directory that discovers three items (the original two, plus a new
+  // one Zhihu returned this time).
+  const firstEvents:TaskEvent[]=[];
+  await new Exporter().export([item("1"),item("2")],[],{outputDir,downloadImages:false,delayMs:0},e=>firstEvents.push(e),freshControl());
+  assert.ok(firstEvents.some(e=>e.type==="start"&&e.id==="1"));
+  assert.ok(firstEvents.some(e=>e.type==="start"&&e.id==="2"));
+
+  // What server.ts does between runs: confirm the directory is now
+  // recognized as resumable, then read the manifest back.
+  await assert.doesNotReject(assertSafeOutputDir(outputDir,[],[]));
+  const prevIndex=JSON.parse(await readFile(path.join(outputDir,"index.json"),"utf8"));
+  const resumedRecords=new Map<string,ExportRecord>(prevIndex.items.map((r:ExportRecord)=>[r.id,r]));
+  assert.equal(resumedRecords.size,2);
+
+  const secondEvents:TaskEvent[]=[];
+  const control=freshControl({resumedRecords});
+  await new Exporter().export([item("1"),item("2"),item("3")],[],{outputDir,downloadImages:false,delayMs:0},e=>secondEvents.push(e),control);
+
+  assert.ok(!secondEvents.some(e=>e.type==="start"&&(e.id==="1"||e.id==="2")),"already-finished items must not be reprocessed on resume");
+  assert.ok(secondEvents.some(e=>e.type==="start"&&e.id==="3"),"a genuinely new item must still be processed normally");
+  assert.ok(secondEvents.some(e=>e.type==="done"&&e.id==="1"&&e.status==="done"));
+
+  const finalIndex=JSON.parse(await readFile(path.join(outputDir,"index.json"),"utf8"));
+  assert.deepEqual(finalIndex.items.map((r:ExportRecord)=>r.id).sort(),["1","2","3"]);
+  assert.equal(finalIndex.summary.discovered,3);
 });

@@ -209,6 +209,7 @@ $("auth-btn").onclick=async()=>{
     try{ await invoke("logout"); }catch(e){ showToast(e.message||String(e),true); }
     urlToken=null;
     lastOutputDir=null;
+    $("dir").value="exports";
     $("reveal").hidden=true;
     $("status-section").hidden=true;
     setAuthUI(false);
@@ -240,7 +241,7 @@ $("about-close").onclick=closeAbout;
 $("about-overlay").onclick=(e)=>{ if(e.target.id==="about-overlay") closeAbout(); };
 document.addEventListener("keydown",(e)=>{ if(e.key==="Escape"&&!$("about-overlay").hidden) closeAbout(); });
 $("about-website").onclick=()=>{
-  invoke("plugin:opener|open_url",{url:"https://yingfeng.ca"}).catch(e=>showToast(e.message||String(e),true));
+  invoke("plugin:opener|open_url",{url:"https://yingfeng.ca/zhi-dang"}).catch(e=>showToast(e.message||String(e),true));
 };
 $("about-repo").onclick=()=>{
   invoke("plugin:opener|open_url",{url:"https://github.com/zhangyingfeng/zhi-dang"}).catch(e=>showToast(e.message||String(e),true));

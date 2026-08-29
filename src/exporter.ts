@@ -2,8 +2,8 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import path from "node:path";
 import TurndownService from "turndown";
-import type { ExportControl, ExportOptions, ListingReport, TaskEvent, ZhihuItem } from "./types.js";
-import { isoDate, safeName, sleep, writeJson } from "./util.js";
+import type { ExportControl, ExportOptions, ExportRecord, ListingReport, TaskEvent, ZhihuItem } from "./types.js";
+import { isoDate, safeName, sleep, writeFileAtomic, writeJson } from "./util.js";
 import { downloadImage } from "./zhihu.js";
 
 // Polled between items (and again between an item's subtasks) rather than
@@ -16,10 +16,19 @@ export class Exporter {
   private td=new TurndownService({headingStyle:"atx",codeBlockStyle:"fenced",bulletListMarker:"-"});
   private imageCache=new Map<string,string>();
   async export(items:ZhihuItem[],listingReports:ListingReport[],opts:ExportOptions,onEvent:(e:TaskEvent)=>void,control:ExportControl={paused:false,skippedItemIds:new Set(),skipImagesItemIds:new Set()}){
-    this.imageCache.clear(); await mkdir(opts.outputDir,{recursive:true}); const records=[]; const imageFailures:ImageFailure[]=[]; const itemFailures:ItemFailure[]=[]; const skippedItems:SkippedItem[]=[];
+    this.imageCache.clear(); await mkdir(opts.outputDir,{recursive:true});
+    const records:ExportRecord[]=[]; const imageFailures:ImageFailure[]=[]; const itemFailures:ItemFailure[]=[]; const skippedItems:SkippedItem[]=[];
+    // Written after every item (not just once at the end) so an interrupted
+    // run — force-quit, crash — still leaves a manifest behind. That's what
+    // makes resume possible at all: assertSafeOutputDir trusts this file's
+    // presence, and the next run reads index.json back to seed
+    // control.resumedRecords with whatever already finished.
+    const persist=()=>this.writeManifests(opts.outputDir,items.length,listingReports,records,itemFailures,skippedItems,imageFailures);
     for(let i=0;i<items.length;i++){
       const item=items[i];
-      if(control.skippedItemIds.has(item.id)){ skippedItems.push({itemId:item.id,kind:item.kind,title:item.title}); onEvent({type:"done",id:item.id,status:"skipped"}); continue; }
+      if(control.skippedItemIds.has(item.id)){ skippedItems.push({itemId:item.id,kind:item.kind,title:item.title}); onEvent({type:"done",id:item.id,status:"skipped"}); await persist(); continue; }
+      const resumed=control.resumedRecords?.get(item.id);
+      if(resumed){ records.push(resumed); onEvent({type:"done",id:item.id,status:"done"}); await persist(); continue; }
       await waitWhilePaused(control);
       onEvent({type:"start",id:item.id});
       try{
@@ -37,19 +46,22 @@ export class Exporter {
         await waitWhilePaused(control);
         onEvent({type:"subtask",id:item.id,key:"write",status:"active"});
         const markdown=this.td.turndown(html); const markdownCover=cover?.startsWith("images/")?`../${cover}`:cover; const front=["---",`id: "${item.id}"`,`type: ${item.kind}`,...(item.questionId?[`question_id: "${item.questionId}"`]:[]),`title: ${JSON.stringify(item.title)}`,`url: ${item.url}`,`created: ${isoDate(item.created)}`,`updated: ${isoDate(item.updated)}`,`voteup_count: ${item.voteupCount}`,`favorite_count: ${item.favoriteCount??"null"}`,`comment_count: ${item.commentCount}`,...(markdownCover?[`cover: ${JSON.stringify(markdownCover)}`]:[]),"---","",`# ${item.title}`,"",markdown,"",`[知乎原文](${item.url})`,""];
-        const filename=`${new Date(item.created*1000).toISOString().slice(0,10)}-${item.id}-${safeName(item.title)}.md`; await writeFile(path.join(folder,filename),front.join("\n"),"utf8"); records.push({...item,html:undefined,cover,file:path.relative(opts.outputDir,path.join(folder,filename))});
+        const filename=`${new Date(item.created*1000).toISOString().slice(0,10)}-${item.id}-${safeName(item.title)}.md`; await writeFileAtomic(path.join(folder,filename),front.join("\n")); records.push({...item,html:undefined,cover,file:path.relative(opts.outputDir,path.join(folder,filename))} as ExportRecord);
         onEvent({type:"subtask",id:item.id,key:"write",status:"done"}); onEvent({type:"done",id:item.id,status:"done"});
       }catch(error){
         const message=error instanceof Error?error.message:String(error);
         itemFailures.push({itemId:item.id,kind:item.kind,title:item.title,error:message}); onEvent({type:"done",id:item.id,status:"error",error:message});
       }
+      await persist();
       await sleep(opts.delayMs);
     }
-    const exportedAt=new Date().toISOString(); const summary={discovered:items.length,succeeded:records.length,failed:itemFailures.length,skipped:skippedItems.length,answers:records.filter(x=>x.kind==="answer").length,articles:records.filter(x=>x.kind==="article").length,imageFailures:imageFailures.length};
-    await writeJson(path.join(opts.outputDir,"index.json"),{schemaVersion:"1.0.0",exportedAt,summary,items:records});
-    await writeJson(path.join(opts.outputDir,"export-report.json"),{schemaVersion:"1.0.0",exportedAt,summary,listingReports,itemFailures,imageFailures,skippedItems});
+  }
+  private async writeManifests(outputDir:string,discovered:number,listingReports:ListingReport[],records:ExportRecord[],itemFailures:ItemFailure[],skippedItems:SkippedItem[],imageFailures:ImageFailure[]){
+    const exportedAt=new Date().toISOString(); const summary={discovered,succeeded:records.length,failed:itemFailures.length,skipped:skippedItems.length,answers:records.filter(x=>x.kind==="answer").length,articles:records.filter(x=>x.kind==="article").length,imageFailures:imageFailures.length};
+    await writeJson(path.join(outputDir,"index.json"),{schemaVersion:"1.0.0",exportedAt,summary,items:records});
+    await writeJson(path.join(outputDir,"export-report.json"),{schemaVersion:"1.0.0",exportedAt,summary,listingReports,itemFailures,imageFailures,skippedItems});
     const listingWarnings=listingReports.filter(report=>report.warning).map(report=>`- ${report.warning}`).join("\n");
-    await writeFile(path.join(opts.outputDir,"README.md"),`# 知乎个人内容归档\n\n发现 ${summary.discovered} 项，成功 ${summary.succeeded} 项，失败 ${summary.failed} 项${summary.skipped?`，用户跳过 ${summary.skipped} 项`:""}；回答 ${summary.answers}，文章 ${summary.articles}。图片失败 ${summary.imageFailures} 项，详情见 export-report.json。${listingWarnings?`\n\n## 分页警告\n\n${listingWarnings}\n`:"\n"}`,"utf8");
+    await writeFileAtomic(path.join(outputDir,"README.md"),`# 知乎个人内容归档\n\n发现 ${summary.discovered} 项，成功 ${summary.succeeded} 项，失败 ${summary.failed} 项${summary.skipped?`，用户跳过 ${summary.skipped} 项`:""}；回答 ${summary.answers}，文章 ${summary.articles}。图片失败 ${summary.imageFailures} 项，详情见 export-report.json。${listingWarnings?`\n\n## 分页警告\n\n${listingWarnings}\n`:"\n"}`);
   }
   private async localizeImages(html:string,imageDir:string,itemId:string,extraUrls:string[]=[],onEvent?:(e:TaskEvent)=>void){
     await mkdir(imageDir,{recursive:true}); html=normalizeImageSources(html); const paths=new Map<string,string>(); const failures:ImageFailure[]=[];

@@ -62,6 +62,19 @@ exports/
 
 因此 `index.json` 和导出的 Markdown 都按长期数据格式对待，破坏兼容性的修改必须经过明确的 schema 版本设计。任何读取归档的工具都应直接使用已导出的本地数据，而不是要求用户重新访问知乎。
 
+## 导出任务列表与控制接口
+
+前端展示的不是单一进度条，而是一份任务列表——`GET /api/status` 返回的 `progress.tasks` 数组，每一项对应一个 `ExportTask`（`src/types.ts`）：状态（`pending`/`active`/`done`/`error`/`skipped`）、`images`/`write` 两个子任务各自的状态，以及可选的 `duplicate` 字段。
+
+**重复检测**：`src/server.ts` 在拿到完整列表后，对每一项正文做 `contentHash`（`src/util.ts`，先用 `normalizePlainText` 去标签、合并空白，再取 SHA-256）分组，哈希相同的项互相标记为 `duplicate`。这是精确匹配，不做任何相似度/语义判断，纯粹是给用户看的提示——本身不会跳过或合并任何内容。
+
+**控制接口**：
+
+- `POST /api/export/pause` / `/resume`：切换 `progress.paused`，`Exporter.export`（`src/exporter.ts`）的循环会在每一项开始前、以及图片/写入两个子任务之间检查这个标记并等待，不是真正的多进程暂停，只在当前这次运行的进程内有效。
+- `POST /api/export/skip`，body 为 `{id, scope:"item"|"images"}`：只在目标项（或图片子任务）还是 `pending` 时才生效，返回 409 表示已经开始处理或已完成，不能通过这个接口撤销。跳过的项记入 `export-report.json` 的 `skippedItems`，不计入失败。
+
+这一整套状态都在内存里（`ExportControl`，`src/types.ts`），不写盘、不跨进程——真正跨重启生效的只有上一节说的"恢复导出"机制（靠读回 `index.json`/`export-report.json`）。
+
 ## 图片处理
 
 - 优先使用 `data-original` 和 `data-actualsrc` 中的真实图片地址。

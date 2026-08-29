@@ -48,11 +48,10 @@ async function resizeToContent(){
 // user every 1.2s.
 //
 // Row layout is deliberately minimal — status dot, kind badge, title, and an
-// actions slot (today just the expand toggle) — because that slot is where
-// per-item management controls (pause/skip, duplicate-merge, resume) land in
-// a later pass; subtask/image detail is demoted into a collapsed-by-default
-// panel instead of competing with those controls for space on the row.
-const statusLabel=s=>s==="active"?"进行中":s==="done"?"完成":s==="error"?"失败":"未开始";
+// actions slot (expand toggle + skip) — subtask/image detail is demoted
+// into a collapsed-by-default panel instead of competing with those
+// controls for space on the row.
+const statusLabel=s=>s==="active"?"进行中":s==="done"?"完成":s==="error"?"失败":s==="skipped"?"已跳过":"未开始";
 const subTaskLabel=key=>key==="images"?"图片":"写入";
 const taskRows=new Map();
 function clearTaskList(){
@@ -71,8 +70,13 @@ function buildTaskRow(t){
   // (that's a later "管理" pass); hidden by default, toggled in patchTaskRow.
   const dup=document.createElement("span"); dup.className="task-dup"; dup.textContent="疑似重复"; dup.hidden=true;
   const actions=document.createElement("span"); actions.className="task-actions";
+  // Only meaningful while the item hasn't started — skipping something
+  // already in flight or finished would mean touching a file already
+  // written, which is out of scope here (see server.ts's /api/export/skip).
+  const skipBtn=document.createElement("button"); skipBtn.type="button"; skipBtn.className="task-skip"; skipBtn.textContent="跳过"; skipBtn.hidden=true;
+  skipBtn.onclick=()=>{ skipBtn.disabled=true; post("/api/export/skip",{id:t.id,scope:"item"}).catch(e=>{ skipBtn.disabled=false; showToast(e.message||String(e),true); }); };
   const expandBtn=document.createElement("button"); expandBtn.type="button"; expandBtn.className="task-expand"; expandBtn.textContent="▸"; expandBtn.setAttribute("aria-label","展开详情");
-  actions.appendChild(expandBtn);
+  actions.append(skipBtn,expandBtn);
   row.append(dot,kind,title,dup,actions);
 
   const detail=document.createElement("div"); detail.className="task-detail"; detail.hidden=true;
@@ -81,9 +85,16 @@ function buildTaskRow(t){
     const subRow=document.createElement("div"); subRow.className="task-detail-row";
     const subDot=document.createElement("span"); subDot.className="task-dot";
     const subLabelEl=document.createElement("span"); subLabelEl.textContent=subTaskLabel(s.key);
-    subRow.append(subDot,subLabelEl); detail.appendChild(subRow);
+    subRow.append(subDot,subLabelEl);
     const entry={dot:subDot,label:subLabelEl};
-    if(s.key==="images"){ const list=document.createElement("div"); list.className="task-image-list"; detail.appendChild(list); entry.list=list; entry.imageEls=new Map(); }
+    if(s.key==="images"){
+      const skipImagesBtn=document.createElement("button"); skipImagesBtn.type="button"; skipImagesBtn.className="task-skip"; skipImagesBtn.textContent="跳过图片"; skipImagesBtn.hidden=true;
+      skipImagesBtn.onclick=()=>{ skipImagesBtn.disabled=true; post("/api/export/skip",{id:t.id,scope:"images"}).catch(e=>{ skipImagesBtn.disabled=false; showToast(e.message||String(e),true); }); };
+      subRow.appendChild(skipImagesBtn); entry.skipBtn=skipImagesBtn;
+      const list=document.createElement("div"); list.className="task-image-list"; detail.appendChild(subRow); detail.appendChild(list); entry.list=list; entry.imageEls=new Map();
+    }else{
+      detail.appendChild(subRow);
+    }
     subEls.set(s.key,entry);
   }
   expandBtn.onclick=()=>{
@@ -92,17 +103,20 @@ function buildTaskRow(t){
     resizeToContent();
   };
   item.append(row,detail);
-  return {item,dot,dup,subEls};
+  return {item,dot,dup,skipBtn,subEls};
 }
 function patchTaskRow(entry,t){
+  entry.item.classList.toggle("skipped",t.status==="skipped");
   entry.dot.className="task-dot "+t.status;
   entry.dot.title=statusLabel(t.status)+(t.error?`：${t.error}`:"");
   entry.dup.hidden=!t.duplicate;
   if(t.duplicate) entry.dup.title=`与 ${t.duplicate.otherTitles.length} 项内容完全一致：${t.duplicate.otherTitles.join("、")}`;
+  entry.skipBtn.hidden=t.status!=="pending";
   for(const s of t.subtasks){
     const sub=entry.subEls.get(s.key); if(!sub) continue;
     sub.dot.className="task-dot "+s.status; sub.dot.title=statusLabel(s.status);
     sub.label.textContent=subTaskLabel(s.key)+(s.key==="images"&&s.images?` (${s.images.length})`:"");
+    if(sub.skipBtn) sub.skipBtn.hidden=s.status!=="pending";
     if(s.key!=="images"||!s.images) continue;
     for(const img of s.images){
       let ie=sub.imageEls.get(img.url);
@@ -258,6 +272,11 @@ $("export").onclick=async()=>{
 $("reveal").onclick=()=>{
   if(lastOutputDir) invoke("plugin:opener|reveal_item_in_dir",{paths:[lastOutputDir]}).catch(e=>showToast(e.message||String(e),true));
 };
+$("pause-btn").onclick=()=>{
+  const btn=$("pause-btn"); const willPause=btn.textContent==="暂停";
+  btn.disabled=true;
+  post(willPause?"/api/export/pause":"/api/export/resume").catch(e=>showToast(e.message||String(e),true)).finally(()=>{ btn.disabled=false; });
+};
 let lastPhase=null;
 setInterval(async()=>{try{
   const {progress:p}=await fetch("/api/status").then(readJson);
@@ -269,6 +288,11 @@ setInterval(async()=>{try{
   const nextBusy=p.phase==="listing"||p.phase==="exporting";
   if(nextBusy!==busy){ busy=nextBusy; syncControls(); }
   $("export").textContent=busy?"导出中…":"开始导出";
+  // Pausing only makes sense once there's an actual export loop running
+  // (listing itself can't be paused — it's a couple of quick paginated
+  // fetches, not the long per-item work pause targets).
+  $("pause-btn").hidden=p.phase!=="exporting";
+  $("pause-btn").textContent=p.paused?"继续":"暂停";
   if(p.phase==="done"&&p.outputDir){
     lastOutputDir=p.outputDir;
     $("reveal").hidden=false;

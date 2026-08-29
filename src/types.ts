@@ -15,7 +15,7 @@ export interface ZhihuItem {
   coverUrl: string | null;
 }
 export interface ExportOptions { outputDir: string; downloadImages: boolean; delayMs: number; }
-export type TaskStatus = "pending" | "active" | "done" | "error";
+export type TaskStatus = "pending" | "active" | "done" | "error" | "skipped";
 // One row per image referenced by an item — nested inside the "images"
 // SubTask so the UI can show a per-image breakdown (which one failed, why)
 // behind an expand toggle instead of cluttering the item row itself.
@@ -35,10 +35,17 @@ export interface ExportTask { id: string; kind: ContentKind; title: string; stat
 // needing to know anything about how progress is surfaced.
 export type TaskEvent =
   | { type: "start"; id: string }
-  | { type: "subtask"; id: string; key: SubTask["key"]; status: "active" | "done" | "error" }
+  | { type: "subtask"; id: string; key: SubTask["key"]; status: "active" | "done" | "error" | "skipped" }
   | { type: "images-list"; id: string; urls: string[] }
   | { type: "image"; id: string; url: string; status: "active" | "done" | "error"; error?: string }
-  | { type: "done"; id: string; status: "done" | "error"; error?: string };
-export interface Progress { phase: "idle"|"login"|"listing"|"exporting"|"done"|"error"; message: string; current?: number; total?: number; outputDir?: string; tasks?: ExportTask[]; }
+  | { type: "done"; id: string; status: "done" | "error" | "skipped"; error?: string };
+export interface Progress { phase: "idle"|"login"|"listing"|"exporting"|"done"|"error"; message: string; current?: number; total?: number; outputDir?: string; tasks?: ExportTask[]; paused?: boolean; }
+// Shared, in-memory, run-scoped control surface: the /api/export/pause,
+// /api/export/resume, and /api/export/skip handlers in server.ts mutate
+// this while Exporter.export polls it, so a same-process pause/skip can
+// take effect without any of it touching disk or surviving a restart —
+// deliberately lighter than the "断点续传" (resume-after-restart) design,
+// which is a separate, later pass (see ROADMAP.md's 阶段3 / preview.3).
+export interface ExportControl { paused: boolean; skippedItemIds: Set<string>; skipImagesItemIds: Set<string>; }
 export interface ListingReport { kind: ContentKind; reportedTotal: number | null; received: number; unique: number; duplicates: number; warning: string | null; }
 export interface ListingResult { items: ZhihuItem[]; report: ListingReport; }

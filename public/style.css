@@ -61,7 +61,7 @@ button[disabled]{
 .step>button{justify-self:start}
 
 .status{
-  display:flex;gap:14px;margin-top:16px;padding:18px 20px;border-radius:12px;
+  display:flex;align-items:center;gap:14px;margin-top:16px;padding:18px 20px;border-radius:12px;
   background:color-mix(in srgb,CanvasText 4%,Canvas);color:CanvasText;
   box-shadow:0 0 0 1px color-mix(in srgb,CanvasText 10%,transparent);
 }
@@ -97,6 +97,11 @@ progress::-webkit-progress-value{background:AccentColor;border-radius:2px;transi
 .task-dot.active{background:#4b9bf5;animation:pulse 1.4s ease-in-out infinite}
 .task-dot.done{background:#3ea55c}
 .task-dot.error{background:#e5484d}
+.task-dot.skipped{background:color-mix(in srgb,CanvasText 35%,Canvas)}
+/* A skipped row is a deliberate user choice, not a failure — dim and
+   strike the title so it reads as "intentionally left out" at a glance,
+   distinct from the red error state. */
+.task-item.skipped .task-title{opacity:.55;text-decoration:line-through}
 .task-kind{
   flex-shrink:0;font-size:10px;padding:1px 6px;border-radius:8px;
   background:color-mix(in srgb,CanvasText 6%,Canvas);color:color-mix(in srgb,CanvasText 50%,Canvas);
@@ -113,16 +118,18 @@ progress::-webkit-progress-value{background:AccentColor;border-radius:2px;transi
    resume) in a later pass — the expand toggle is the first thing to live
    here so that later additions don't need to redo the row layout. */
 .task-actions{flex-shrink:0;display:flex;align-items:center;gap:4px}
-.task-expand{
+.task-expand,.task-skip{
   background:transparent;padding:2px 7px;margin:0;font-size:10px;line-height:1.4;
   color:color-mix(in srgb,CanvasText 45%,Canvas);border-radius:5px;
 }
-.task-expand:hover{background:color-mix(in srgb,CanvasText 8%,Canvas);color:CanvasText;filter:none}
-.task-expand:active{filter:none;transform:none}
+.task-expand:hover,.task-skip:hover{background:color-mix(in srgb,CanvasText 8%,Canvas);color:CanvasText;filter:none}
+.task-expand:active,.task-skip:active{filter:none;transform:none}
+.task-skip[disabled]{opacity:.5;background:transparent}
 
 .task-detail{padding:0 12px 8px 27px}
 .task-detail[hidden]{display:none}
 .task-detail-row{display:flex;align-items:center;gap:6px;padding:3px 0;font-size:11px;color:color-mix(in srgb,CanvasText 55%,Canvas)}
+.task-detail-row .task-skip{margin-left:auto}
 .task-image-list{margin:0 0 4px 13px;display:flex;flex-direction:column;gap:3px}
 .task-image-row{display:flex;align-items:center;gap:6px;font-size:10px;color:color-mix(in srgb,CanvasText 45%,Canvas)}
 .task-image-url{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}

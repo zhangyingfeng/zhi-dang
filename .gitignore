@@ -3,6 +3,10 @@ dist/
 .data/
 exports/
 exports-*/
+# A real export the maintainer ran with a custom (non-default) output
+# directory name — the "exports"/"exports-*" patterns above don't catch
+# arbitrary names. Real content, never commit it.
+/zhangyingfeng/
 coverage/
 *.log
 .DS_Store

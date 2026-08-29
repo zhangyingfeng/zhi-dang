@@ -6,7 +6,7 @@ import { paginateListing, buildListingUrl } from "./zhihu.js";
 import { Exporter } from "./exporter.js";
 import { assertSafeEmptyOutputDir, contentHash, normalizePlainText } from "./util.js";
 import { fetchViaFrontend, waitForFrontendRequest, submitFrontendResult } from "./frontendBridge.js";
-import type { DuplicateInfo, ExportTask, Progress } from "./types.js";
+import type { DuplicateInfo, ExportControl, ExportTask, Progress } from "./types.js";
 // Statically imported (not read from disk at runtime) so it's inlined at
 // compile time by both tsc and Bun's --compile — reading it from the
 // filesystem would break in the packaged app, where cwd isn't reliable.
@@ -20,6 +20,10 @@ const publicDir=process.env.ZHIDANG_PUBLIC_DIR||path.join(root,"public");
 // instead of process.cwd(). In dev, cwd is the project root, which is fine.
 const exportBase=isPackaged?path.join(os.homedir(),"Documents"):root;
 const exporter=new Exporter(); let progress:Progress={phase:"idle",message:"准备就绪"};
+// Set for the duration of a single running export (see ExportControl's doc
+// comment in types.ts); the pause/resume/skip endpoints below mutate it,
+// and Exporter.export polls it from inside the already-running loop.
+let exportControl:ExportControl|null=null;
 const app=express(); app.use(express.json({limit:"10mb"})); app.use(express.static(publicDir));
 app.get("/api/status",(_req,res)=>res.json({progress}));
 app.get("/api/about",(_req,res)=>res.json({version:pkg.version}));
@@ -63,22 +67,56 @@ app.post("/api/export",async(req,res)=>{
       // before a single byte of export work has actually started.
       const tasks:ExportTask[]=items.map(it=>({id:it.id,kind:it.kind,title:it.title,status:"pending",subtasks:[...(parsed.data.downloadImages?[{key:"images" as const,status:"pending" as const}]:[]),{key:"write" as const,status:"pending" as const}],duplicate:contentDuplicates.get(it.id)}));
       const taskById=new Map(tasks.map(t=>[t.id,t]));
-      const doneCount=()=>tasks.reduce((n,t)=>n+(t.status==="done"||t.status==="error"?1:0),0);
-      progress={phase:"exporting",message:"开始导出",current:0,total:tasks.length,tasks};
-      await exporter.export(items,[answerResult.report,articleResult.report],{...parsed.data,outputDir:out},(e)=>{
-        const task=taskById.get(e.id); if(!task) return;
-        if(e.type==="start"){ task.status="active"; progress={...progress,message:task.title,tasks}; }
-        else if(e.type==="subtask"){ const sub=task.subtasks.find(s=>s.key===e.key); if(sub) sub.status=e.status; progress={...progress,tasks}; }
-        // The two image-level events populate/patch the "images" subtask's
-        // own nested list — this is what lets the UI show a per-image
-        // breakdown behind an expand toggle instead of one opaque badge.
-        else if(e.type==="images-list"){ const sub=task.subtasks.find(s=>s.key==="images"); if(sub) sub.images=e.urls.map(url=>({url,status:"pending" as const})); progress={...progress,tasks}; }
-        else if(e.type==="image"){ const img=task.subtasks.find(s=>s.key==="images")?.images?.find(i=>i.url===e.url); if(img){ img.status=e.status; if(e.error) img.error=e.error; } progress={...progress,tasks}; }
-        else{ task.status=e.status; if(e.error) task.error=e.error; progress={...progress,current:doneCount(),tasks}; }
-      });
+      const doneCount=()=>tasks.reduce((n,t)=>n+(t.status==="done"||t.status==="error"||t.status==="skipped"?1:0),0);
+      exportControl={paused:false,skippedItemIds:new Set(),skipImagesItemIds:new Set()};
+      progress={phase:"exporting",message:"开始导出",current:0,total:tasks.length,tasks,paused:false};
+      try{
+        await exporter.export(items,[answerResult.report,articleResult.report],{...parsed.data,outputDir:out},(e)=>{
+          const task=taskById.get(e.id); if(!task) return;
+          if(e.type==="start"){ task.status="active"; progress={...progress,message:task.title,tasks}; }
+          else if(e.type==="subtask"){ const sub=task.subtasks.find(s=>s.key===e.key); if(sub) sub.status=e.status; progress={...progress,tasks}; }
+          // The two image-level events populate/patch the "images" subtask's
+          // own nested list — this is what lets the UI show a per-image
+          // breakdown behind an expand toggle instead of one opaque badge.
+          else if(e.type==="images-list"){ const sub=task.subtasks.find(s=>s.key==="images"); if(sub) sub.images=e.urls.map(url=>({url,status:"pending" as const})); progress={...progress,tasks}; }
+          else if(e.type==="image"){ const img=task.subtasks.find(s=>s.key==="images")?.images?.find(i=>i.url===e.url); if(img){ img.status=e.status; if(e.error) img.error=e.error; } progress={...progress,tasks}; }
+          else{ task.status=e.status; if(e.error) task.error=e.error; progress={...progress,current:doneCount(),tasks}; }
+        },exportControl);
+      }finally{ exportControl=null; }
+      const skippedCount=tasks.filter(t=>t.status==="skipped").length;
       const duplicateCount=answerResult.report.duplicates+articleResult.report.duplicates;
-      progress={phase:"done",message:`完成：${answers.length} 个回答，${articles.length} 篇文章${duplicateCount?`；已去重 ${duplicateCount} 条重复记录`:""}`,current:items.length,total:items.length,outputDir:out,tasks};
+      progress={phase:"done",message:`完成：${answers.length} 个回答，${articles.length} 篇文章${duplicateCount?`；已去重 ${duplicateCount} 条重复记录`:""}${skippedCount?`；已跳过 ${skippedCount} 项`:""}`,current:items.length,total:items.length,outputDir:out,tasks};
     }catch(e){progress={phase:"error",message:e instanceof Error?e.message:String(e)};}
   })();
+});
+app.post("/api/export/pause",(_req,res)=>{
+  if(!exportControl) return res.status(409).json({error:"当前没有正在进行的导出"});
+  exportControl.paused=true; progress={...progress,paused:true}; res.json({ok:true});
+});
+app.post("/api/export/resume",(_req,res)=>{
+  if(!exportControl) return res.status(409).json({error:"当前没有正在进行的导出"});
+  exportControl.paused=false; progress={...progress,paused:false}; res.json({ok:true});
+});
+// Marks a not-yet-started item (or, with scope "images", a not-yet-started
+// image subtask within an item) to be skipped once Exporter.export's loop
+// reaches it. Restricted to "pending" so an already in-flight or finished
+// item/subtask can't be retroactively un-done from here — this is a queue
+// edit, not a way to delete an existing file.
+app.post("/api/export/skip",(req,res)=>{
+  const parsed=z.object({id:z.string().min(1),scope:z.enum(["item","images"]).default("item")}).safeParse(req.body);
+  if(!parsed.success) return res.status(400).json({error:parsed.error.message});
+  if(!exportControl||!progress.tasks) return res.status(409).json({error:"当前没有正在进行的导出"});
+  const task=progress.tasks.find(t=>t.id===parsed.data.id);
+  if(!task) return res.status(404).json({error:"未找到该项"});
+  if(parsed.data.scope==="item"){
+    if(task.status!=="pending") return res.status(409).json({error:"该项已经开始处理，无法跳过"});
+    exportControl.skippedItemIds.add(task.id); task.status="skipped";
+  }else{
+    const sub=task.subtasks.find(s=>s.key==="images");
+    if(!sub) return res.status(404).json({error:"该项没有图片子任务"});
+    if(sub.status!=="pending") return res.status(409).json({error:"图片子任务已经开始处理，无法跳过"});
+    exportControl.skipImagesItemIds.add(task.id); sub.status="skipped";
+  }
+  progress={...progress,tasks:progress.tasks}; res.json({ok:true});
 });
 const port=Number(process.env.PORT||4317); app.listen(port,"127.0.0.1",()=>console.log(`知档已启动：http://127.0.0.1:${port}`));

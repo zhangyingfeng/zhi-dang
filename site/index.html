@@ -1,0 +1,404 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>知档 — 知乎作者归档</title>
+<meta name="description" content="知档是一个安全、开源的桌面工具，帮知乎作者把自己的回答和文章导出成本地、开放、由自己保管的归档（Markdown、JSON、本地图片）。无遥测、无上传、本地优先。">
+<link rel="icon" href="assets/app-icon.png">
+<meta property="og:title" content="知档 — 知乎作者归档">
+<meta property="og:description" content="把你的知乎回答和文章，导出成本地、开放、由你自己保管的归档。无遥测、无上传、本地优先。">
+<meta property="og:image" content="assets/app-icon.png">
+<meta property="og:type" content="website">
+<style>
+  :root{
+    color-scheme: light dark;
+    --font: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    --brand: #1769e0;
+    --brand-text: #1769e0;
+    --bg: #ffffff;
+    --surface: #f6f7f8;
+    --surface-2: #eef0f2;
+    --text: #1b1c1e;
+    --muted: #61656c;
+    --faint: #8a8f97;
+    --border: rgba(20,22,25,.12);
+    --border-soft: rgba(20,22,25,.08);
+    --shadow: 0 1px 2px rgba(0,0,0,.04), 0 8px 30px rgba(0,0,0,.06);
+    --radius: 14px;
+    --maxw: 880px;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --brand: #2b7cf0;
+      --brand-text: #6fb0ff;
+      --bg: #191a1b;
+      --surface: #212325;
+      --surface-2: #2a2c2f;
+      --text: #eef0f2;
+      --muted: #a3a8b0;
+      --faint: #7b8088;
+      --border: rgba(255,255,255,.14);
+      --border-soft: rgba(255,255,255,.08);
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 40px rgba(0,0,0,.35);
+    }
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0;background:var(--bg);color:var(--text);
+    font-family:var(--font);font-size:16px;line-height:1.6;
+    -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;
+  }
+  a{color:var(--brand-text);text-decoration:none}
+  a:hover{text-decoration:underline}
+  .wrap{width:min(var(--maxw),calc(100% - 40px));margin:0 auto}
+
+  /* nav */
+  header.nav{
+    position:sticky;top:0;z-index:20;
+    background:color-mix(in srgb, var(--bg) 88%, transparent);
+    backdrop-filter:saturate(1.4) blur(10px);
+    border-bottom:1px solid var(--border-soft);
+  }
+  .nav .wrap{display:flex;align-items:center;justify-content:space-between;height:56px}
+  .brand{display:flex;align-items:center;gap:9px;font-weight:600;color:var(--text)}
+  .brand:hover{text-decoration:none}
+  .brand .mark{width:24px;height:24px;border-radius:6px;display:block}
+  .nav nav{display:flex;gap:20px;font-size:14px}
+  .nav nav a{color:var(--muted)}
+
+  /* hero */
+  .hero{text-align:center;padding:72px 0 8px}
+  .hero .mark-lg{
+    width:76px;height:76px;border-radius:18px;display:block;margin:0 auto 22px;
+    box-shadow:var(--shadow);
+  }
+  .hero h1{font-size:40px;line-height:1.15;margin:0 0 14px;letter-spacing:-.01em}
+  .hero .lede{font-size:20px;color:var(--text);max-width:34ch;margin:0 auto 10px}
+  .hero .sub{font-size:16px;color:var(--muted);max-width:52ch;margin:0 auto 28px}
+  .cta{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-bottom:14px}
+  .btn{
+    display:inline-flex;align-items:center;gap:8px;
+    padding:11px 20px;border-radius:10px;font-size:15px;font-weight:600;
+    border:1px solid transparent;cursor:pointer;transition:filter .12s,background .12s;
+  }
+  .btn-primary{background:var(--brand);color:#fff}
+  .btn-primary:hover{filter:brightness(1.08);text-decoration:none}
+  .btn-ghost{background:var(--surface);color:var(--text);border-color:var(--border)}
+  .btn-ghost:hover{background:var(--surface-2);text-decoration:none}
+  .hero .meta{font-size:13px;color:var(--faint)}
+  .hero .meta a{color:var(--faint);text-decoration:underline}
+
+  /* sections */
+  section{padding:56px 0;border-top:1px solid var(--border-soft)}
+  section:first-of-type{border-top:0}
+  h2{font-size:26px;margin:0 0 8px;letter-spacing:-.01em}
+  .section-intro{color:var(--muted);max-width:56ch;margin:0 0 28px}
+  p.lead{font-size:17px;color:var(--text)}
+
+  .quote{
+    border-left:3px solid var(--brand);padding:2px 0 2px 18px;
+    color:var(--text);font-size:17px;margin:20px 0 0;
+  }
+
+  /* format badges + tree */
+  .formats{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:22px}
+  .chip{
+    font-size:13px;font-weight:600;padding:5px 12px;border-radius:999px;
+    background:var(--surface);border:1px solid var(--border);color:var(--text);
+  }
+  pre.tree{
+    background:var(--surface);border:1px solid var(--border);border-radius:12px;
+    padding:18px 20px;overflow-x:auto;font-size:13.5px;line-height:1.7;
+    font-family:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+    color:var(--text);margin:0;
+  }
+  pre.tree .c{color:var(--faint)}
+
+  /* steps */
+  .steps{display:grid;gap:22px}
+  @media(min-width:720px){.steps{grid-template-columns:repeat(3,1fr)}}
+  .step{
+    background:var(--surface);border:1px solid var(--border-soft);border-radius:var(--radius);
+    overflow:hidden;display:flex;flex-direction:column;
+  }
+  .step img{width:100%;display:block;background:var(--surface-2);border-bottom:1px solid var(--border-soft)}
+  .step .body{padding:16px 18px}
+  .step .n{
+    display:inline-grid;place-items:center;width:22px;height:22px;border-radius:6px;
+    background:var(--brand);color:#fff;font-size:12px;font-weight:700;margin-bottom:8px;
+  }
+  .step h3{margin:0 0 4px;font-size:16px}
+  .step p{margin:0;font-size:14px;color:var(--muted)}
+
+  /* principle grid */
+  .grid2{display:grid;gap:16px}
+  @media(min-width:640px){.grid2{grid-template-columns:1fr 1fr}}
+  .card{
+    background:var(--surface);border:1px solid var(--border-soft);border-radius:var(--radius);
+    padding:20px;
+  }
+  .card h3{margin:0 0 6px;font-size:16px}
+  .card p{margin:0;font-size:14.5px;color:var(--muted)}
+
+  /* privacy */
+  .privacy{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:26px 24px}
+  .privacy ul{margin:14px 0 0;padding:0;list-style:none;display:grid;gap:12px}
+  .privacy li{padding-left:26px;position:relative;font-size:15px;color:var(--text)}
+  .privacy li::before{
+    content:"";position:absolute;left:0;top:8px;width:12px;height:12px;border-radius:4px;
+    background:var(--brand);
+  }
+
+  /* boundary box */
+  .note{
+    border:1px solid var(--border);border-radius:var(--radius);padding:20px 22px;
+    background:transparent;
+  }
+  .note h3{margin:0 0 10px;font-size:15px;color:var(--muted);font-weight:600;text-transform:none}
+  .note ul{margin:0;padding-left:20px;display:grid;gap:7px}
+  .note li{font-size:14.5px;color:var(--muted)}
+
+  /* roadmap */
+  .road{display:grid;gap:12px}
+  .road .row{
+    display:grid;grid-template-columns:auto 1fr;gap:14px;align-items:start;
+    padding:14px 0;border-top:1px solid var(--border-soft);
+  }
+  .road .row:first-child{border-top:0}
+  .road .tag{
+    font-size:12px;font-weight:700;padding:3px 9px;border-radius:6px;white-space:nowrap;
+    background:var(--surface-2);color:var(--muted);
+  }
+  .road .row p{margin:0;font-size:14.5px;color:var(--muted)}
+  .road .row strong{color:var(--text);font-weight:600}
+
+  /* footer */
+  footer{border-top:1px solid var(--border-soft);padding:40px 0 60px;color:var(--muted);font-size:13.5px}
+  footer .cols{display:flex;flex-wrap:wrap;gap:10px 26px;margin-bottom:18px}
+  footer a{color:var(--muted);text-decoration:underline}
+  footer .fine{color:var(--faint);font-size:12.5px;line-height:1.7;max-width:60ch}
+</style>
+</head>
+<body>
+
+<header class="nav">
+  <div class="wrap">
+    <a class="brand" href="#top">
+      <img class="mark" src="assets/app-icon.png" alt="">
+      知档
+    </a>
+    <nav>
+      <a href="#how">怎么用</a>
+      <a href="#privacy">隐私</a>
+      <a href="https://github.com/zhangyingfeng/zhi-dang">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main id="top">
+
+  <div class="wrap">
+    <div class="hero">
+      <img class="mark-lg" src="assets/app-icon.png" alt="知档图标">
+      <h1>知档</h1>
+      <p class="lede">把你的知乎回答和文章，导出成本地、开放、由你自己保管的归档。</p>
+      <p class="sub">「知档」，即知乎作者归档。一个安全、开源的内容导出工具，方便作者把知乎上自己的内容归档导出为 Markdown、JSON 和本地图片。</p>
+      <div class="cta">
+        <a class="btn btn-primary" id="download" href="https://github.com/zhangyingfeng/zhi-dang/releases/latest">
+          下载 · macOS（Apple Silicon）
+        </a>
+        <a class="btn btn-ghost" href="https://github.com/zhangyingfeng/zhi-dang">在 GitHub 查看源码</a>
+      </div>
+      <p class="meta">
+        <span id="version">版本与更新记录见 GitHub Releases</span> · 仅 macOS Apple Silicon ·
+        首次打开需在「系统设置 → 隐私与安全性」里手动允许一次（<a href="https://github.com/zhangyingfeng/zhi-dang/blob/main/docs/GETTING_STARTED.md">图文教程</a>）
+      </p>
+    </div>
+  </div>
+
+  <div class="wrap">
+
+    <section id="why">
+      <h2>从一个很具体的问题开始</h2>
+      <p class="lead">作者在内容平台上长期创作之后，如何把自己的作品完整、安全地保存下来，并继续由自己控制。</p>
+      <p class="quote">知档的回答是：把作者自己的知乎创作，转换成开放、可读、可迁移、由作者自己保管的本地归档。</p>
+    </section>
+
+    <section id="output">
+      <h2>你会得到什么</h2>
+      <p class="section-intro">导出结果是一个普通的本地文件夹，可以直接读、备份、迁移到自有网站。<code>index.json</code> 和 Markdown 被当作长期数据格式来维护。</p>
+      <div class="formats">
+        <span class="chip">Markdown 正文</span>
+        <span class="chip">index.json 索引</span>
+        <span class="chip">export-report.json 报告</span>
+        <span class="chip">本地化图片</span>
+      </div>
+      <pre class="tree">导出目录/
+├── answers/           <span class="c"># 每条回答一个 Markdown 文件</span>
+├── articles/          <span class="c"># 每篇文章一个 Markdown 文件</span>
+├── images/            <span class="c"># 正文里的图片，全部下载到本地</span>
+├── index.json         <span class="c"># 全部内容的结构化索引（公开 schema）</span>
+├── export-report.json <span class="c"># 总数 / 分页 / 去重 / 失败的完整报告</span>
+└── README.md          <span class="c"># 这份导出的说明</span></pre>
+      <p class="section-intro" style="margin-top:22px">
+        每个条目保留原文链接、创建与更新时间、问题 ID、点赞与评论数、封面等元数据。接口报告总数、分页实际返回数、去重后的唯一数会被分别记录；无法解释的差异会给出完整性警告，而不是静默生成错误数据。
+      </p>
+    </section>
+
+    <section id="how">
+      <h2>怎么用</h2>
+      <p class="section-intro">独立桌面应用，不需要安装 Node.js、Chrome 或任何开发工具。</p>
+      <div class="steps">
+        <div class="step">
+          <img src="assets/03-login-required.jpg" alt="知档主界面，未登录状态，右上角「开始登录」按钮">
+          <div class="body">
+            <span class="n">1</span>
+            <h3>下载并打开</h3>
+            <p>从 GitHub Releases 下载 <code>.dmg</code>，拖进「应用程序」打开。打开后直接是导出设置界面。</p>
+          </div>
+        </div>
+        <div class="step">
+          <img src="assets/04-zhihu-signin.jpg" alt="知档内嵌的知乎登录窗口">
+          <div class="body">
+            <span class="n">2</span>
+            <h3>登录知乎</h3>
+            <p>点「开始登录」，在弹出的独立窗口里正常登录（扫码、验证码或密码）。登录信息只留在本机。</p>
+          </div>
+        </div>
+        <div class="step">
+          <img src="assets/08-export-done.jpg" alt="导出完成，显示回答与文章数量、去重条数">
+          <div class="body">
+            <span class="n">3</span>
+            <h3>选目录，导出</h3>
+            <p>确认保存位置，点「开始导出」。完成后显示汇总，并可一键在访达中打开结果。</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="principles">
+      <h2>设计原则</h2>
+      <p class="section-intro">无论知档发展到什么程度，都保持以下原则。</p>
+      <div class="grid2">
+        <div class="card">
+          <h3>平台独立</h3>
+          <p>知乎是当前的内容来源，但数据模型不永远绑定于某个平台的页面结构。</p>
+        </div>
+        <div class="card">
+          <h3>本地优先</h3>
+          <p>作者应能取得自己的完整数据，并能在没有任何云服务的情况下继续使用。</p>
+        </div>
+        <div class="card">
+          <h3>安全隐私</h3>
+          <p>登录信息、Cookie 和导出内容默认只保存在本机，不自动上传；不加入遥测、远程日志或用户内容上传。</p>
+        </div>
+        <div class="card">
+          <h3>开放格式</h3>
+          <p>内容和元数据优先采用公开、可迁移的格式，不制造新的平台锁定。</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="privacy">
+      <h2>隐私</h2>
+      <p class="section-intro">这是知档最在意的一层，也是它和「一键搬运」类工具的根本区别。</p>
+      <div class="privacy">
+        <ul>
+          <li>应用在你自己的电脑上运行，本地服务只监听 <code>127.0.0.1</code>。</li>
+          <li>在应用内置的登录窗口里直接登录知乎，不需要在表单、终端或配置文件里填密码或 Cookie。</li>
+          <li>登录会话由系统自带的 WebView 管理（macOS 上是 WKWebView），本应用的后端服务不接触、不读取。</li>
+          <li>回答、文章和图片只写入你指定的本地目录。</li>
+          <li>不包含遥测、分析、广告、远程日志或开发者服务器上传。</li>
+          <li>点「退出登录」即可清除会话；删除导出目录即可清除导出内容。</li>
+        </ul>
+      </div>
+      <p class="section-intro" style="margin-top:18px">
+        详见 <a href="https://github.com/zhangyingfeng/zhi-dang/blob/main/docs/PRIVACY.md">隐私说明</a>。
+      </p>
+    </section>
+
+    <section id="scope">
+      <h2>边界与已知限制</h2>
+      <div class="note">
+        <h3>知档只做一件事：完整、安全地导出作者本人的知乎内容。</h3>
+        <ul>
+          <li>只用于导出本人创作或已获授权的内容。</li>
+          <li>不提供验证码绕过、访问控制规避、代理池或账号池。</li>
+          <li>不下载评论正文、粉丝列表、关注关系或其他用户资料。</li>
+          <li>遇到登录失效或安全验证时停止，由你在登录窗口中正常完成。</li>
+          <li>这是独立开发的非官方项目，与知乎不存在隶属、合作、授权或认可关系。</li>
+          <li>目前只在 macOS（Apple Silicon）上完整测试；使用免费 ad-hoc 签名，首次打开会有 Gatekeeper 提示，需手动允许一次。</li>
+        </ul>
+      </div>
+    </section>
+
+    <section id="roadmap">
+      <h2>路线图</h2>
+      <p class="section-intro">记录方向和优先级，不代表功能已完成，也不构成发布时间承诺。</p>
+      <div class="road">
+        <div class="row">
+          <span class="tag">进行中</span>
+          <p><strong>导出体验重构</strong>：list-first 流程、精确内容哈希检测重复并交由用户预览确认后合并、per-item 子任务与暂停续传。</p>
+        </div>
+        <div class="row">
+          <span class="tag">规划中</span>
+          <p><strong>Apple 签名 + 公证</strong>：官网直接分发，消除 Gatekeeper 警告。</p>
+        </div>
+        <div class="row">
+          <span class="tag">规划中</span>
+          <p><strong>Windows 打包与分发</strong>：WebView2 登录、安装包、代码签名消除 SmartScreen 警告。</p>
+        </div>
+      </div>
+      <p class="section-intro" style="margin-top:18px">
+        完整路线图见 <a href="https://github.com/zhangyingfeng/zhi-dang/blob/main/docs/ROADMAP.md">ROADMAP.md</a>。
+      </p>
+    </section>
+
+  </div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="cols">
+      <a href="https://github.com/zhangyingfeng/zhi-dang">源码仓库</a>
+      <a href="https://github.com/zhangyingfeng/zhi-dang/releases">下载 / 更新记录</a>
+      <a href="https://github.com/zhangyingfeng/zhi-dang/blob/main/docs/GETTING_STARTED.md">使用教程</a>
+      <a href="https://github.com/zhangyingfeng/zhi-dang/blob/main/docs/DISCLAIMER.md">免责声明</a>
+      <a href="https://github.com/zhangyingfeng/zhi-dang/blob/main/docs/ACCEPTABLE_USE.md">可接受使用</a>
+      <a href="https://github.com/zhangyingfeng/zhi-dang/blob/main/docs/PRIVACY.md">隐私说明</a>
+    </div>
+    <p class="fine">
+      知档是独立开发的非官方工具，与知乎不存在隶属、合作、授权或认可关系。「知乎」及相关标识属于其相应权利人。
+      本项目使用 MIT 协议开源。软件按现状提供，不附带任何明示或默示担保。
+      使用者有责任遵守适用法律、著作权规则和平台条款。
+    </p>
+  </div>
+</footer>
+
+<script>
+  // No analytics, no third-party scripts. One optional call to GitHub's public
+  // API to resolve the latest release's version + .dmg asset; on any failure
+  // the static links above are already correct.
+  (function () {
+    var REPO = "zhangyingfeng/zhi-dang";
+    fetch("https://api.github.com/repos/" + REPO + "/releases/latest", {
+      headers: { Accept: "application/vnd.github+json" }
+    })
+      .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
+      .then(function (rel) {
+        if (rel.tag_name) {
+          document.getElementById("version").textContent = "当前 " + rel.tag_name.replace(/^v/, "");
+        }
+        var dmg = (rel.assets || []).find(function (a) { return /\.dmg$/i.test(a.name); });
+        if (dmg && dmg.browser_download_url) {
+          document.getElementById("download").href = dmg.browser_download_url;
+        }
+      })
+      .catch(function () { /* keep static fallbacks */ });
+  })();
+</script>
+
+</body>
+</html>

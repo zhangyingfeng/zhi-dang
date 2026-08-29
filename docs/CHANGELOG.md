@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.1.0-preview.2
+
+Second slice of the 1.1 export-UX rework — the "管理" (control) stage: adds control over an already-running export, on top of preview.1's read-only task list.
+
+- Pause/resume for a running export, via a button on the status card. This is a same-process pause only — it stops the loop between items (and again between an item's image/write subtasks) so it takes effect promptly, but it does not survive quitting the app; resume-after-restart is a separate, later "完善" stage.
+- Per-item skip: a "跳过" button appears in each row's reserved actions slot while the item is still "未开始". Skipping excludes it from the download entirely — it's recorded in `export-report.json`'s new `skippedItems` list, not counted as a failure. This is also the mechanism for resolving a "疑似重复" flag from preview.1: skip whichever copy you don't want.
+- Per-item image skip: a "跳过图片" button next to the "图片" subtask in the expanded detail panel, while that subtask is still pending — keeps the text content but doesn't localize images for that one item.
+- Both skip actions are restricted to items/subtasks that haven't started yet — an in-flight or already-finished item can't be retroactively un-done through this UI, since that would mean touching a file already written.
+- Skipped rows are dimmed with a strikethrough title instead of the red error color, since it's a deliberate choice rather than a failure.
+- Backend: `POST /api/export/{pause,resume,skip}`; added `test/exporter.test.ts` with integration tests against `Exporter.export` directly (no network) covering skip, pause, and images-only skip.
+
 ## 1.1.0-preview.1
 
 First slice of the 1.1 export-UX rework (see ROADMAP.md's 阶段3) — the "展示" (visibility) stage: replaces the single opaque progress bar with a per-item task list, still fully automatic (no pause/skip/merge actions yet — those are the next "管理" stage).

@@ -24,7 +24,12 @@ export interface SubTask { key: "images" | "write"; status: TaskStatus; images?:
 // One row per answer/article in the export task list — the "展示" (visibility)
 // layer of the export redesign: replaces the single opaque progress bar with
 // per-item and per-subtask state the UI can render directly.
-export interface ExportTask { id: string; kind: ContentKind; title: string; status: TaskStatus; subtasks: SubTask[]; error?: string; }
+// Set when this item's normalized body text hash-matches one or more other
+// items in the same export (see contentHash in util.ts) — an exact-content
+// signal only, surfaced read-only for now; deciding what to do about it
+// (merge/skip) is a later "管理" pass, not this one.
+export interface DuplicateInfo { groupSize: number; otherTitles: string[]; }
+export interface ExportTask { id: string; kind: ContentKind; title: string; status: TaskStatus; subtasks: SubTask[]; error?: string; duplicate?: DuplicateInfo; }
 // Emitted by Exporter.export as it works through each item, so the caller
 // (src/server.ts) can update its own ExportTask list without the exporter
 // needing to know anything about how progress is surfaced.

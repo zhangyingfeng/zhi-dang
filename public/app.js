@@ -66,10 +66,14 @@ function buildTaskRow(t){
   const dot=document.createElement("span"); dot.className="task-dot";
   const kind=document.createElement("span"); kind.className="task-kind"; kind.textContent=t.kind==="answer"?"回答":"文章";
   const title=document.createElement("span"); title.className="task-title"; title.textContent=t.title;
+  // Read-only hint only — exact-content duplicate candidates are flagged
+  // here so the user can see them, but no merge/skip action exists yet
+  // (that's a later "管理" pass); hidden by default, toggled in patchTaskRow.
+  const dup=document.createElement("span"); dup.className="task-dup"; dup.textContent="疑似重复"; dup.hidden=true;
   const actions=document.createElement("span"); actions.className="task-actions";
   const expandBtn=document.createElement("button"); expandBtn.type="button"; expandBtn.className="task-expand"; expandBtn.textContent="▸"; expandBtn.setAttribute("aria-label","展开详情");
   actions.appendChild(expandBtn);
-  row.append(dot,kind,title,actions);
+  row.append(dot,kind,title,dup,actions);
 
   const detail=document.createElement("div"); detail.className="task-detail"; detail.hidden=true;
   const subEls=new Map();
@@ -88,11 +92,13 @@ function buildTaskRow(t){
     resizeToContent();
   };
   item.append(row,detail);
-  return {item,dot,subEls};
+  return {item,dot,dup,subEls};
 }
 function patchTaskRow(entry,t){
   entry.dot.className="task-dot "+t.status;
   entry.dot.title=statusLabel(t.status)+(t.error?`：${t.error}`:"");
+  entry.dup.hidden=!t.duplicate;
+  if(t.duplicate) entry.dup.title=`与 ${t.duplicate.otherTitles.length} 项内容完全一致：${t.duplicate.otherTitles.join("、")}`;
   for(const s of t.subtasks){
     const sub=entry.subEls.get(s.key); if(!sub) continue;
     sub.dot.className="task-dot "+s.status; sub.dot.title=statusLabel(s.status);

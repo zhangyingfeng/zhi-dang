@@ -1,4 +1,4 @@
-import test from "node:test"; import assert from "node:assert/strict"; import {mkdtemp, mkdir, writeFile} from "node:fs/promises"; import os from "node:os"; import path from "node:path"; import {safeName,isoDate,assertSafeEmptyOutputDir} from "../src/util.js";
+import test from "node:test"; import assert from "node:assert/strict"; import {mkdtemp, mkdir, writeFile} from "node:fs/promises"; import os from "node:os"; import path from "node:path"; import {safeName,isoDate,assertSafeEmptyOutputDir,normalizePlainText,contentHash} from "../src/util.js";
 import { imageFileName, normalizeImageSources } from "../src/exporter.js";
 test("safeName removes unsafe filename characters",()=>assert.equal(safeName('a/b:c*?"<>|'),"a_b_c______"));
 test("isoDate converts epoch seconds",()=>assert.equal(isoDate(0),"1970-01-01T00:00:00.000Z"));
@@ -10,3 +10,6 @@ test("noscript fallback does not duplicate a lazy image",()=>assert.equal(normal
 test("output safety allows a missing directory",async()=>{const base=await mkdtemp(path.join(os.tmpdir(),"archive-test-"));await assert.doesNotReject(assertSafeEmptyOutputDir(path.join(base,"new"),[],[]));});
 test("output safety rejects a non-empty directory",async()=>{const base=await mkdtemp(path.join(os.tmpdir(),"archive-test-"));const out=path.join(base,"out");await mkdir(out);await writeFile(path.join(out,"existing.txt"),"x");await assert.rejects(assertSafeEmptyOutputDir(out,[],[]),/不是空目录/);});
 test("output safety rejects protected descendants",async()=>{const base=await mkdtemp(path.join(os.tmpdir(),"archive-test-"));await assert.rejects(assertSafeEmptyOutputDir(path.join(base,"private","child"),[],[path.join(base,"private")]),/受保护/);});
+test("normalizePlainText strips tags and collapses whitespace",()=>assert.equal(normalizePlainText("<p>你好\n\n<b>世界</b></p>  <p>再见</p>"),"你好 世界 再见"));
+test("contentHash matches across different markup for the same visible text",()=>assert.equal(contentHash("<p>同一段内容</p>"),contentHash("<div><span>同一段内容</span></div>")));
+test("contentHash differs for different visible text",()=>assert.notEqual(contentHash("<p>内容甲</p>"),contentHash("<p>内容乙</p>")));

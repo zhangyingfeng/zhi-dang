@@ -4,9 +4,9 @@ import os from "node:os";
 import { z } from "zod";
 import { paginateListing, buildListingUrl } from "./zhihu.js";
 import { Exporter } from "./exporter.js";
-import { assertSafeEmptyOutputDir } from "./util.js";
+import { assertSafeEmptyOutputDir, contentHash, normalizePlainText } from "./util.js";
 import { fetchViaFrontend, waitForFrontendRequest, submitFrontendResult } from "./frontendBridge.js";
-import type { ExportTask, Progress } from "./types.js";
+import type { DuplicateInfo, ExportTask, Progress } from "./types.js";
 // Statically imported (not read from disk at runtime) so it's inlined at
 // compile time by both tsc and Bun's --compile — reading it from the
 // filesystem would break in the packaged app, where cwd isn't reliable.
@@ -39,11 +39,29 @@ app.post("/api/export",async(req,res)=>{
       progress={phase:"listing",message:"正在获取文章列表",current:0};
       const articleResult=await paginateListing("article",buildListingUrl("article",parsed.data.urlToken),fetchViaFrontend,{onCount:n=>progress={phase:"listing",message:`已获取 ${n} 篇文章`,current:n}});
       const answers=answerResult.items; const articles=articleResult.items; const items=[...answers,...articles].sort((a,b)=>b.created-a.created);
+      // Exact-content duplicate detection: groups items whose normalized body
+      // text hashes identically (e.g. the same essay posted as both an
+      // answer and an article). Deliberately hash equality only — no
+      // similarity/fuzzy matching — so it's a read-only hint the list can
+      // show, not a judgment call the app is making on the user's behalf.
+      // Very short bodies are skipped so near-empty items don't all cluster
+      // together as false positives.
+      const MIN_DEDUP_TEXT_LENGTH=20;
+      const hashGroups=new Map<string,(typeof items)[number][]>();
+      for(const it of items){
+        if(normalizePlainText(it.html).length<MIN_DEDUP_TEXT_LENGTH) continue;
+        const hash=contentHash(it.html); const group=hashGroups.get(hash); if(group) group.push(it); else hashGroups.set(hash,[it]);
+      }
+      const contentDuplicates=new Map<string,DuplicateInfo>();
+      for(const group of hashGroups.values()){
+        if(group.length<2) continue;
+        for(const it of group) contentDuplicates.set(it.id,{groupSize:group.length,otherTitles:group.filter(g=>g.id!==it.id).map(g=>g.title)});
+      }
       // Task list is built up front from the already-fetched listing (Zhihu's
       // listing API returns full content, so there's no separate "fetch" step
       // per item) — this is what lets the UI show every item as "未开始"
       // before a single byte of export work has actually started.
-      const tasks:ExportTask[]=items.map(it=>({id:it.id,kind:it.kind,title:it.title,status:"pending",subtasks:[...(parsed.data.downloadImages?[{key:"images" as const,status:"pending" as const}]:[]),{key:"write" as const,status:"pending" as const}]}));
+      const tasks:ExportTask[]=items.map(it=>({id:it.id,kind:it.kind,title:it.title,status:"pending",subtasks:[...(parsed.data.downloadImages?[{key:"images" as const,status:"pending" as const}]:[]),{key:"write" as const,status:"pending" as const}],duplicate:contentDuplicates.get(it.id)}));
       const taskById=new Map(tasks.map(t=>[t.id,t]));
       const doneCount=()=>tasks.reduce((n,t)=>n+(t.status==="done"||t.status==="error"?1:0),0);
       progress={phase:"exporting",message:"开始导出",current:0,total:tasks.length,tasks};

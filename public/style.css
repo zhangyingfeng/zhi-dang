@@ -95,13 +95,20 @@ progress::-webkit-progress-value{background:AccentColor;border-radius:2px;transi
 .task-row{display:flex;align-items:center;gap:8px;padding:7px 12px;font-size:12px}
 .task-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;background:color-mix(in srgb,CanvasText 25%,Canvas)}
 .task-dot.active{background:#4b9bf5;animation:pulse 1.4s ease-in-out infinite}
-.task-dot.done{background:#6fdd8b}
-.task-dot.error{background:#ff6b6b}
+.task-dot.done{background:#3ea55c}
+.task-dot.error{background:#e5484d}
 .task-kind{
   flex-shrink:0;font-size:10px;padding:1px 6px;border-radius:8px;
   background:color-mix(in srgb,CanvasText 6%,Canvas);color:color-mix(in srgb,CanvasText 50%,Canvas);
 }
 .task-title{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:CanvasText}
+/* Read-only exact-duplicate hint (see src/util.ts's contentHash) — an amber
+   tint distinct from the neutral kind badge, mixed against CanvasText (not
+   a fixed text color) so it stays legible in both themes. */
+.task-dup{
+  flex-shrink:0;font-size:10px;padding:1px 6px;border-radius:8px;
+  background:color-mix(in srgb,#eda100 22%,Canvas);color:color-mix(in srgb,#eda100 65%,CanvasText);
+}
 /* Reserved for per-item management controls (pause/skip, duplicate-merge,
    resume) in a later pass — the expand toggle is the first thing to live
    here so that later additions don't need to redo the row layout. */

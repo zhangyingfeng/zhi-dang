@@ -15,6 +15,10 @@ export interface ZhihuItem {
   coverUrl: string | null;
 }
 export interface ExportOptions { outputDir: string; downloadImages: boolean; delayMs: number; }
+// What index.json actually stores per item: the source ZhihuItem minus its
+// raw html (already folded into the written Markdown, so keeping it here
+// too would just double the file size) plus where it ended up on disk.
+export interface ExportRecord extends Omit<ZhihuItem,"html"> { cover: string | null; file: string; }
 export type TaskStatus = "pending" | "active" | "done" | "error" | "skipped";
 // One row per image referenced by an item — nested inside the "images"
 // SubTask so the UI can show a per-image breakdown (which one failed, why)
@@ -46,6 +50,12 @@ export interface Progress { phase: "idle"|"login"|"listing"|"exporting"|"done"|"
 // take effect without any of it touching disk or surviving a restart —
 // deliberately lighter than the "断点续传" (resume-after-restart) design,
 // which is a separate, later pass (see ROADMAP.md's 阶段3 / preview.3).
-export interface ExportControl { paused: boolean; skippedItemIds: Set<string>; skipImagesItemIds: Set<string>; }
+// resumedRecords seeds items that already succeeded in a previous
+// (interrupted) run into this one, read back from that run's index.json —
+// Exporter.export treats a match as already-done and reuses the stored
+// record verbatim instead of redoing the work. Previously-skipped items are
+// simpler: they're just folded into skippedItemIds up front by the caller,
+// since that's exactly the mechanism that already exists for a fresh skip.
+export interface ExportControl { paused: boolean; skippedItemIds: Set<string>; skipImagesItemIds: Set<string>; resumedRecords?: Map<string,ExportRecord>; }
 export interface ListingReport { kind: ContentKind; reportedTotal: number | null; received: number; unique: number; duplicates: number; warning: string | null; }
 export interface ListingResult { items: ZhihuItem[]; report: ListingReport; }

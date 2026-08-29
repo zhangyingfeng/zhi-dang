@@ -1,12 +1,13 @@
 import express from "express";
 import path from "node:path";
 import os from "node:os";
+import { readFile } from "node:fs/promises";
 import { z } from "zod";
 import { paginateListing, buildListingUrl } from "./zhihu.js";
 import { Exporter } from "./exporter.js";
-import { assertSafeEmptyOutputDir, contentHash, normalizePlainText } from "./util.js";
+import { assertSafeOutputDir, contentHash, normalizePlainText } from "./util.js";
 import { fetchViaFrontend, waitForFrontendRequest, submitFrontendResult } from "./frontendBridge.js";
-import type { DuplicateInfo, ExportControl, ExportTask, Progress } from "./types.js";
+import type { DuplicateInfo, ExportControl, ExportRecord, ExportTask, Progress, TaskStatus } from "./types.js";
 // Statically imported (not read from disk at runtime) so it's inlined at
 // compile time by both tsc and Bun's --compile — reading it from the
 // filesystem would break in the packaged app, where cwd isn't reliable.
@@ -34,7 +35,20 @@ app.post("/api/export",async(req,res)=>{
   if(!parsed.success) return res.status(400).json({error:parsed.error.message});
   if(progress.phase==="listing"||progress.phase==="exporting") return res.status(409).json({error:"已有导出任务正在运行"});
   const out=path.resolve(exportBase,parsed.data.outputDir);
-  try{await assertSafeEmptyOutputDir(out,[path.parse(out).root,os.homedir(),exportBase],[path.join(root,"node_modules"),path.join(root,"dist")]);}catch(e){return res.status(400).json({error:e instanceof Error?e.message:String(e)});}
+  try{await assertSafeOutputDir(out,[path.parse(out).root,os.homedir(),exportBase],[path.join(root,"node_modules"),path.join(root,"dist")]);}catch(e){return res.status(400).json({error:e instanceof Error?e.message:String(e)});}
+  // Resuming into a directory this tool already wrote to: read back what
+  // finished last time so it isn't redone. Best-effort — a missing or
+  // unreadable manifest just means nothing gets seeded (fresh start), never
+  // an error; assertSafeOutputDir above already made the trust call.
+  const resumedRecords=new Map<string,ExportRecord>(); const resumedSkippedIds=new Set<string>();
+  try{
+    const prevIndex=JSON.parse(await readFile(path.join(out,"index.json"),"utf8"));
+    for(const record of prevIndex.items??[]) resumedRecords.set(record.id,record);
+  }catch{}
+  try{
+    const prevReport=JSON.parse(await readFile(path.join(out,"export-report.json"),"utf8"));
+    for(const s of prevReport.skippedItems??[]) resumedSkippedIds.add(s.itemId);
+  }catch{}
   res.json({ok:true});
   void (async()=>{
     try{
@@ -64,12 +78,20 @@ app.post("/api/export",async(req,res)=>{
       // Task list is built up front from the already-fetched listing (Zhihu's
       // listing API returns full content, so there's no separate "fetch" step
       // per item) — this is what lets the UI show every item as "未开始"
-      // before a single byte of export work has actually started.
-      const tasks:ExportTask[]=items.map(it=>({id:it.id,kind:it.kind,title:it.title,status:"pending",subtasks:[...(parsed.data.downloadImages?[{key:"images" as const,status:"pending" as const}]:[]),{key:"write" as const,status:"pending" as const}],duplicate:contentDuplicates.get(it.id)}));
+      // before a single byte of export work has actually started. Items
+      // that already finished (or were skipped) in a previous interrupted
+      // run are pre-marked here too, so a resume shows the real picture
+      // immediately instead of every row starting at "未开始" again.
+      const tasks:ExportTask[]=items.map(it=>{
+        const alreadyDone=resumedRecords.has(it.id); const alreadySkipped=!alreadyDone&&resumedSkippedIds.has(it.id);
+        const status:TaskStatus=alreadyDone?"done":alreadySkipped?"skipped":"pending";
+        return {id:it.id,kind:it.kind,title:it.title,status,subtasks:[...(parsed.data.downloadImages?[{key:"images" as const,status}]:[]),{key:"write" as const,status}],duplicate:contentDuplicates.get(it.id)};
+      });
       const taskById=new Map(tasks.map(t=>[t.id,t]));
       const doneCount=()=>tasks.reduce((n,t)=>n+(t.status==="done"||t.status==="error"||t.status==="skipped"?1:0),0);
-      exportControl={paused:false,skippedItemIds:new Set(),skipImagesItemIds:new Set()};
-      progress={phase:"exporting",message:"开始导出",current:0,total:tasks.length,tasks,paused:false};
+      exportControl={paused:false,skippedItemIds:resumedSkippedIds,skipImagesItemIds:new Set(),resumedRecords};
+      const resumedCount=resumedRecords.size+resumedSkippedIds.size;
+      progress={phase:"exporting",message:resumedCount?`继续导出：${resumedCount} 项已在上次完成`:"开始导出",current:doneCount(),total:tasks.length,tasks,paused:false};
       try{
         await exporter.export(items,[answerResult.report,articleResult.report],{...parsed.data,outputDir:out},(e)=>{
           const task=taskById.get(e.id); if(!task) return;

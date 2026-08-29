@@ -119,9 +119,13 @@ progress::-webkit-progress-value{background:AccentColor;border-radius:2px;transi
    here so that later additions don't need to redo the row layout. */
 .task-actions{flex-shrink:0;display:flex;align-items:center;gap:4px}
 .task-expand,.task-skip{
-  background:transparent;padding:2px 7px;margin:0;font-size:10px;line-height:1.4;
+  background:transparent;margin:0;line-height:1.4;
   color:color-mix(in srgb,CanvasText 45%,Canvas);border-radius:5px;
 }
+.task-skip{padding:2px 7px;font-size:10px}
+/* A single glyph (▸/▾) reads too small and is too fiddly to hit at the
+   skip button's compact size — bigger font and a real min tap target. */
+.task-expand{padding:1px 6px;font-size:15px;min-width:24px;min-height:22px;text-align:center}
 .task-expand:hover,.task-skip:hover{background:color-mix(in srgb,CanvasText 8%,Canvas);color:CanvasText;filter:none}
 .task-expand:active,.task-skip:active{filter:none;transform:none}
 .task-skip[disabled]{opacity:.5;background:transparent}

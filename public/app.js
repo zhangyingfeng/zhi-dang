@@ -231,8 +231,6 @@ $("auth-btn").onclick=async()=>{
     lastOutputDir=null;
     completedAtDir=null;
     $("dir").value="exports";
-    $("reveal").hidden=true;
-    $("reveal").classList.add("secondary");
     $("status-section").hidden=true;
     clearTaskList();
     setAuthUI(false);

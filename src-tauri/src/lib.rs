@@ -327,6 +327,7 @@ pub fn run() {
     .plugin(tauri_plugin_shell::init())
     .plugin(tauri_plugin_dialog::init())
     .plugin(tauri_plugin_opener::init())
+    .plugin(tauri_plugin_notification::init())
     .setup(|app| {
       let menu = build_menu_with_custom_about(app.handle())?;
       app.set_menu(menu)?;

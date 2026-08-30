@@ -72,6 +72,7 @@ exports/
 
 - `POST /api/export/pause` / `/resume`：切换 `progress.paused`，`Exporter.export`（`src/exporter.ts`）的循环会在每一项开始前、以及图片/写入两个子任务之间检查这个标记并等待，不是真正的多进程暂停，只在当前这次运行的进程内有效。
 - `POST /api/export/skip`，body 为 `{id, scope:"item"|"images"}`：只在目标项（或图片子任务）还是 `pending` 时才生效，返回 409 表示已经开始处理或已完成，不能通过这个接口撤销。跳过的项记入 `export-report.json` 的 `skippedItems`，不计入失败。
+- `POST /api/reset`：把 `progress` 清回 `{phase:"idle",...}`，导出进行中时拒绝（409）。前端退出登录时会调用这个接口——登出本身是 Tauri 侧清理登录会话，不经过 HTTP，如果不主动清一次，`GET /api/status` 还会继续吐出上一次导出的任务列表。
 
 这一整套状态都在内存里（`ExportControl`，`src/types.ts`），不写盘、不跨进程——真正跨重启生效的只有上一节说的"恢复导出"机制（靠读回 `index.json`/`export-report.json`）。
 

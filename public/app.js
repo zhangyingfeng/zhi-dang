@@ -15,6 +15,25 @@ function showToast(message,isError){
   toastTimer=setTimeout(()=>{t.hidden=true},isError?5000:3000);
 }
 
+// Lets the user step away during a long export and still know when it's
+// done, without this app playing its own sound — the system notification's
+// sound (or lack of one, under Do Not Disturb etc.) already follows
+// whatever the user has set for notifications in general, which is more
+// considerate than the app overriding that. Uses the plain Web Notification
+// API directly (no @tauri-apps/plugin-notification import): the WKWebView
+// backing this window routes it to the real macOS notification center, and
+// this app has no bundler for public/app.js to import an npm package into
+// anyway — every other plugin call here goes through the same window.*
+// globals for that reason.
+async function ensureNotificationPermission(){
+  if(window.Notification.permission==="granted") return true;
+  if(window.Notification.permission==="denied") return false;
+  try{ return (await window.Notification.requestPermission())==="granted"; }catch{ return false; }
+}
+function notify(title,body){
+  if(window.Notification.permission==="granted"){ try{ new window.Notification(title,{body}); }catch{} }
+}
+
 // Measures the page's own rendered height rather than using a guessed
 // constant, so the window always fits exactly (no scrollbar, no dead
 // space) regardless of font-rendering differences between the WKWebView
@@ -207,11 +226,15 @@ $("auth-btn").onclick=async()=>{
   if(loggedIn){
     $("auth-btn").disabled=true;
     try{ await invoke("logout"); }catch(e){ showToast(e.message||String(e),true); }
+    await post("/api/reset").catch(()=>{});
     urlToken=null;
     lastOutputDir=null;
+    completedAtDir=null;
     $("dir").value="exports";
     $("reveal").hidden=true;
+    $("reveal").classList.add("secondary");
     $("status-section").hidden=true;
+    clearTaskList();
     setAuthUI(false);
     resizeToContent();
     showToast("已退出登录");
@@ -255,7 +278,17 @@ $("browse").onclick=async()=>{
     if(selected) $("dir").value=selected;
   }catch(e){ showToast(e.message||String(e),true); }
 };
+// A single button that swaps roles instead of two side-by-side buttons: once
+// an export finishes, "开始导出" turns into "在访达中显示" (same button, new
+// label and click behavior) rather than disabling one and revealing another
+// next to it. It swaps back the moment "保存位置" changes to anything other
+// than the directory that just finished — see the mode toggle in the
+// polling loop below.
 $("export").onclick=async()=>{
+  if($("export").dataset.mode==="reveal"){
+    if(lastOutputDir) invoke("plugin:opener|reveal_item_in_dir",{paths:[lastOutputDir]}).catch(e=>showToast(e.message||String(e),true));
+    return;
+  }
   if(!urlToken){
     try{ urlToken=(await invoke("zhihu_me")).urlToken; }catch{}
   }
@@ -266,12 +299,10 @@ $("export").onclick=async()=>{
     resizeToContent();
     return;
   }
-  $("reveal").hidden=true;
+  completedAtDir=null;
   clearTaskList();
+  ensureNotificationPermission();
   post("/api/export",{outputDir:$("dir").value,downloadImages:$("images").checked,delayMs:900,urlToken}).catch(e=>showToast(e.message,true));
-};
-$("reveal").onclick=()=>{
-  if(lastOutputDir) invoke("plugin:opener|reveal_item_in_dir",{paths:[lastOutputDir]}).catch(e=>showToast(e.message||String(e),true));
 };
 $("pause-btn").onclick=()=>{
   const btn=$("pause-btn"); const willPause=btn.textContent==="暂停";
@@ -279,8 +310,22 @@ $("pause-btn").onclick=()=>{
   post(willPause?"/api/export/pause":"/api/export/resume").catch(e=>showToast(e.message||String(e),true)).finally(()=>{ btn.disabled=false; });
 };
 let lastPhase=null;
+// The directory that was current at the moment an export finished. While
+// "保存位置" still holds that exact value, the button stays in "在访达中
+// 显示" mode; the moment it no longer matches (typed, or picked via
+// "浏览…"), the button swaps back to "开始导出" for a fresh run. Comparing
+// values on every tick, rather than listening for input events, means it
+// doesn't matter *how* the field changed.
+let completedAtDir=null;
 setInterval(async()=>{try{
   const {progress:p}=await fetch("/api/status").then(readJson);
+  // The backend's progress/tasks belong to whatever export last ran and
+  // aren't reset on logout (logout is a Tauri-side session clear, not an
+  // HTTP call) — without this guard, the very next tick would flip the
+  // button back to "在访达中显示" and repopulate the task list right after
+  // clearTaskList() clears them, since the stale data is still sitting in
+  // /api/status.
+  if(!loggedIn) return;
   $("message").textContent=p.message;
   $("count").textContent=p.total?`${p.current||0} / ${p.total}`:(p.current?String(p.current):"");
   $("bar").value=p.total?100*(p.current||0)/p.total:0;
@@ -288,16 +333,22 @@ setInterval(async()=>{try{
   renderTasks(p.tasks);
   const nextBusy=p.phase==="listing"||p.phase==="exporting";
   if(nextBusy!==busy){ busy=nextBusy; syncControls(); }
-  $("export").textContent=busy?"导出中…":"开始导出";
+  if(p.phase==="done"&&p.outputDir){
+    lastOutputDir=p.outputDir;
+    if(lastPhase!=="done"){
+      showToast(`导出完成：${p.outputDir}`);
+      notify("知档",p.message||`导出完成：${p.outputDir}`);
+      completedAtDir=$("dir").value;
+    }
+  }
+  const justCompleted=p.phase==="done"&&completedAtDir!==null&&$("dir").value===completedAtDir;
+  $("export").dataset.mode=justCompleted?"reveal":"export";
+  $("export").textContent=justCompleted?"在访达中显示":busy?"导出中…":"开始导出";
+  $("export").disabled=justCompleted?false:(busy||!loggedIn);
   // Pausing only makes sense once there's an actual export loop running
   // (listing itself can't be paused — it's a couple of quick paginated
   // fetches, not the long per-item work pause targets).
   $("pause-btn").hidden=p.phase!=="exporting";
   $("pause-btn").textContent=p.paused?"继续":"暂停";
-  if(p.phase==="done"&&p.outputDir){
-    lastOutputDir=p.outputDir;
-    $("reveal").hidden=false;
-    if(lastPhase!=="done") showToast(`导出完成：${p.outputDir}`);
-  }
   lastPhase=p.phase;
 }catch{}},1200);

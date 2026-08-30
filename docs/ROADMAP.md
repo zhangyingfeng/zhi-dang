@@ -80,17 +80,17 @@
 
 ## 阶段 3：跨平台分发与导出体验重构
 
-**状态：规划中，尚未开始**
+**状态：进行中——1.1 功能已完成（preview 阶段），尚未正式发布**
 
 两条互不阻塞的独立轨道，只共享"1.1 功能冻结"这一个前置节点：
 
-| 版本 | 内容 | 依赖 |
+| 版本 | 内容 | 状态 |
 |---|---|---|
-| 1.1 | 导出体验重构并锁定：list-first 流程、精确内容哈希检测重复并交由用户预览确认后合并（跳过下载，不涉及内容编辑）、per-item 子任务与暂停续传。按展示→管理→完善的顺序分阶段交付（参考 1.0.0 的 preview 节奏），开工前另行整理详细设计 | 无 |
-| 1.2 | Apple Developer ID 签名 + 公证，官网直接分发消除 Gatekeeper 警告（目前用免费 ad-hoc 签名，警告可在系统设置里手动绕过，不阻塞使用但不够顺滑） | Apple Developer Program 账号（可提前注册，与 1.1 开发并行） |
-| 1.3 | 尝试提交 Mac App Store（需要 App Sandbox 改造和 entitlements）。这一步风险较高——内嵌 WebView 抓取第三方平台数据的工具历史上审核并不宽松，按"低成本尝试，被拒不回炉重做"对待，不影响官网分发作为主渠道 | 1.1 已冻结、1.2 完成 |
-| 1.4 | Windows 打包与分发：WebView2 登录/会话验证、安装包、代码签名消除 SmartScreen 警告 | 1.1 已冻结（不依赖 1.3 结果） |
-| 2.0 | macOS + Windows 双平台稳定，Archive Core 功能面定型 | 1.2–1.4 完成 |
+| 1.1 | 导出体验重构：list-first 流程、精确内容哈希检测重复并在列表里只读标出（不做自动判断）、per-item 子任务状态、暂停/继续导出、单项跳过（也是解决"疑似重复"提示的方式——跳过其中一份）、断点续传（重新指向同一目录会复用已完成的部分，不重新下载）。按展示→管理→完善分三个 preview 交付（参考 1.0.0 的节奏）| **功能已完成**——[`1.1.0-preview.1`](https://github.com/zhangyingfeng/zhi-dang/releases/tag/v1.1.0-preview.1)/[`.2`](https://github.com/zhangyingfeng/zhi-dang/releases/tag/v1.1.0-preview.2)/[`.3`](https://github.com/zhangyingfeng/zhi-dang/releases/tag/v1.1.0-preview.3) 均已发布，功能面已冻结；尚未去掉 preview 后缀正式发布 `1.1.0` |
+| 1.2 | Apple Developer ID 签名 + 公证，官网直接分发消除 Gatekeeper 警告（目前用免费 ad-hoc 签名，警告可在系统设置里手动绕过，不阻塞使用但不够顺滑） | 未开始，需要 Apple Developer Program 账号 |
+| 1.3 | 尝试提交 Mac App Store（需要 App Sandbox 改造和 entitlements）。这一步风险较高——内嵌 WebView 抓取第三方平台数据的工具历史上审核并不宽松，按"低成本尝试，被拒不回炉重做"对待，不影响官网分发作为主渠道 | 未开始，依赖 1.2 |
+| 1.4 | Windows 打包与分发：WebView2 登录/会话验证、安装包、代码签名消除 SmartScreen 警告 | 未开始，不依赖 1.3 结果 |
+| 2.0 | macOS + Windows 双平台稳定，Archive Core 功能面定型 | 未开始，依赖 1.2–1.4 |
 
 Intel Mac / Linux 不在计划内，仅 macOS（Apple Silicon）+ Windows 两个目标平台。
 

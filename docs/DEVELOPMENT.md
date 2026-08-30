@@ -22,6 +22,8 @@ npx tauri build
 
 额外需要安装 Rust 工具链（`cargo`）和 [Bun](https://bun.sh)，打包时会用它们把后端编译成独立可执行文件（sidecar），最终产物不依赖用户机器上是否装有 Node.js。
 
+正式发布前的完整验证步骤（真机测试、签名/Gatekeeper 检查、断点续传等自动化测不到的项目）见 [发布前检查清单](RELEASE_CHECKLIST.md)。
+
 ## 构建与测试
 
 ```bash

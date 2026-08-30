@@ -25,10 +25,16 @@ npx tauri build
 ## 构建与测试
 
 ```bash
-npm test        # 后端单元测试
+npm test        # 静态引用检查 + 后端单元测试 + 前端特征测试
 npx tauri dev    # 启动完整桌面应用
 npx tauri build  # 打包独立 .app / .dmg
 ```
+
+`npm test` 依次跑三层：
+
+1. `scripts/check-dom-refs.mjs`——静态比对 `public/app.js` 里所有 `$("id")` 引用和 `public/index.html` 里实际存在的 `id`，元素被删掉但引用没清干净时（1.1.0 那次退出登录崩溃就是这个原因）直接报错，不需要跑测试就能拦住。
+2. `test/*.test.ts` 里后端部分（`zhihu.ts`/`exporter.ts`/`util.ts`）——分页、去重、图片处理、暂停/跳过/续传的集成测试，用合成数据，不碰网络。
+3. `test/app.test.ts`——`public/app.js` 从来没有过自动化测试，这个文件用 jsdom 把真实的 `index.html`+`app.js` 加载起来跑，`window.__TAURI__`/`fetch`/`Notification`/`setInterval` 全部换成测试可控的假实现（具体怎么假的见文件顶部的 `createHarness`），覆盖登录/退出登录状态切换、任务列表渲染、暂停/跳过、"开始导出"↔"在访达中显示"这几条关键路径。这些测试是照着两个真实发生过的退出登录 bug（`docs/BUGFIXES.md`）反向写的特征测试，用来验证：如果这两个 bug 现在重新引入，测试会不会红——已经手动验证过会。
 
 贡献前请阅读 [CONTRIBUTING.md](CONTRIBUTING.md)。使用 Codex 等编码工具维护时，请同时遵守 [AGENTS.md](../AGENTS.md) 中的仓库约束。
 

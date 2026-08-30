@@ -1,8 +1,10 @@
 # Changelog
 
-## Unreleased
+## 1.1.0
 
-Real-machine feedback on top of 1.1.0-preview.3, not yet cut into a new preview.
+Stable release of the 1.1 export-UX rework: list-first task view, per-item/subtask status, exact-content duplicate flags, pause/skip, and resume into an existing output directory. Everything below through preview.1 is the changelog of how this release was built — see those entries for the individual fixes and design decisions. Feature set is frozen as the baseline for 1.2's Apple Developer ID signing work.
+
+On top of preview.3, this release also folds in:
 
 - Fixed logging out leaving the previous export's task list (and its "在访达中显示" button) visible: the logout handler never cleared the frontend's task list, and even after clearing it the polling loop would repopulate it within ~1.2s from the backend's still-live progress state (logout only clears the Tauri-side login session, it doesn't touch the Node server). Added `POST /api/reset` and gated the polling loop on login state.
 - Merged "开始导出"/"在访达中显示" into a single button that swaps label and behavior instead of disabling one and showing a second one next to it: it becomes "在访达中显示" only while "保存位置" still points at the directory that just finished, and flips back to "开始导出" the moment that changes.

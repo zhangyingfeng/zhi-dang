@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.1
+
+Fixes a regression shipped in 1.1.0: logging out threw partway through cleanup (two leftover references to the `#reveal` element removed when the export/reveal buttons were merged into one) and silently aborted the rest of the handler — the task list and status card stayed visible, and "开始导出" would incorrectly claim "登录状态已丢失" on the next click before finally resetting. No other behavior changes.
+
 ## 1.1.0
 
 Stable release of the 1.1 export-UX rework: list-first task view, per-item/subtask status, exact-content duplicate flags, pause/skip, and resume into an existing output directory. Everything below through preview.1 is the changelog of how this release was built — see those entries for the individual fixes and design decisions. Feature set is frozen as the baseline for 1.2's Apple Developer ID signing work.

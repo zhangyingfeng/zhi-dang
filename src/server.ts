@@ -28,6 +28,14 @@ let exportControl:ExportControl|null=null;
 const app=express(); app.use(express.json({limit:"10mb"})); app.use(express.static(publicDir));
 app.get("/api/status",(_req,res)=>res.json({progress}));
 app.get("/api/about",(_req,res)=>res.json({version:pkg.version}));
+// Called on logout so a fresh login doesn't inherit the previous account's
+// leftover task list / output dir — /api/export's own 409 guard already
+// keeps this from firing mid-run, and the frontend disables the logout
+// button while an export is busy, so this never races a running export.
+app.post("/api/reset",(_req,res)=>{
+  if(progress.phase==="listing"||progress.phase==="exporting") return res.status(409).json({error:"导出正在进行，无法重置"});
+  progress={phase:"idle",message:"准备就绪"}; res.json({ok:true});
+});
 app.get("/api/frontend-fetch-request",async(_req,res)=>{ const next=await waitForFrontendRequest(25000); res.json(next); });
 app.post("/api/frontend-fetch-result",(req,res)=>{ const parsed=z.object({id:z.number(),status:z.number(),body:z.string()}).safeParse(req.body); if(!parsed.success) return res.status(400).json({error:parsed.error.message}); submitFrontendResult(parsed.data.id,parsed.data.status,parsed.data.body); res.json({ok:true}); });
 app.post("/api/export",async(req,res)=>{

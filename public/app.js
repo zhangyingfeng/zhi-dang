@@ -207,11 +207,13 @@ $("auth-btn").onclick=async()=>{
   if(loggedIn){
     $("auth-btn").disabled=true;
     try{ await invoke("logout"); }catch(e){ showToast(e.message||String(e),true); }
+    await post("/api/reset").catch(()=>{});
     urlToken=null;
     lastOutputDir=null;
     $("dir").value="exports";
     $("reveal").hidden=true;
     $("status-section").hidden=true;
+    clearTaskList();
     setAuthUI(false);
     resizeToContent();
     showToast("已退出登录");
@@ -281,6 +283,12 @@ $("pause-btn").onclick=()=>{
 let lastPhase=null;
 setInterval(async()=>{try{
   const {progress:p}=await fetch("/api/status").then(readJson);
+  // The backend's progress/tasks belong to whatever export last ran and
+  // aren't reset on logout (logout is a Tauri-side session clear, not an
+  // HTTP call) — without this guard, the very next tick re-populates the
+  // task list and "在访达中显示" right back after clearTaskList() clears
+  // them, since the stale data is still sitting in /api/status.
+  if(!loggedIn) return;
   $("message").textContent=p.message;
   $("count").textContent=p.total?`${p.current||0} / ${p.total}`:(p.current?String(p.current):"");
   $("bar").value=p.total?100*(p.current||0)/p.total:0;

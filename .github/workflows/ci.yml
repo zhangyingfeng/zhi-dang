@@ -21,3 +21,29 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run build
+
+  rust:
+    # macos-latest, not ubuntu: the app links against WKWebView/AppKit-only
+    # crates (objc2-app-kit, window-vibrancy, etc.), so it can't even type
+    # check on Linux. This only runs `cargo check`, not a full `tauri build`,
+    # but build.rs still panics without the sidecar binary present (it's
+    # declared as a tauri.conf.json externalBin resource and gets checked
+    # even for `cargo check`) -- confirmed the hard way on this job's first
+    # real run, so the sidecar has to be built first, same as a local check.
+    runs-on: macos-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - uses: oven-sh/setup-bun@v2
+      - run: npm ci
+      - run: npm run build:sidecar
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - run: cargo check --locked
+        working-directory: src-tauri

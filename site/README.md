@@ -10,7 +10,7 @@
 |---|---|
 | `index.html` | 单页，内联 CSS + 一小段 JS，无构建步骤，无第三方脚本，无统计代码 |
 | `assets/app-icon.png` | 从 `../assets/app-icon.png` 复制 |
-| `assets/0*.jpg` | 从 `../docs/images/` 复制并压缩的界面截图（03/04/08） |
+| `assets/0*.jpg` | 从 `../docs/images/` 复制并压缩的界面截图（04/05/12） |
 | `wrangler.jsonc` | Cloudflare Workers 静态资源托管配置（assets-only，无 Worker 脚本） |
 | `.assetsignore` | 把配置文件本身排除在上传的静态资源之外 |
 
@@ -55,7 +55,7 @@ Cloudflare Dashboard → Workers & Pages → **Create application** → **Import
 
 ```bash
 cp assets/app-icon.png site/assets/app-icon.png
-for f in 03-login-required 04-zhihu-signin 08-export-done; do
+for f in 04-login-required 05-zhihu-signin 12-export-done; do
   sips -Z 1400 -s formatOptions 70 "docs/images/$f.jpg" --out "site/assets/$f.jpg"
 done
 ```

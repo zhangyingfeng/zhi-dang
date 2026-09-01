@@ -7,7 +7,6 @@
 ```bash
 git clone https://github.com/zhangyingfeng/zhi-dang.git
 cd zhi-dang
-git checkout v1-tauri
 npm install
 npx tauri dev
 ```

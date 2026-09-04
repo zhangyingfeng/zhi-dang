@@ -154,10 +154,6 @@
   }
 
   /* boundary compare */
-  .b-group{margin-bottom:28px}
-  .b-group:last-child{margin-bottom:0}
-  .b-group h3{margin:0 0 4px;font-size:15px;color:var(--muted);font-weight:600}
-
   .cmp-wrap{overflow-x:auto;border:1px solid var(--border-soft);border-radius:var(--radius)}
   table.cmp{width:100%;border-collapse:collapse;font-size:14px}
   table.cmp th,table.cmp td{padding:12px 16px;text-align:left;vertical-align:top}
@@ -169,10 +165,6 @@
   table.cmp tbody tr:last-child td{border-bottom:0}
   table.cmp tbody td:first-child{color:var(--text)}
   table.cmp tbody td:last-child{color:var(--ok);font-weight:600}
-
-  .scope-list{display:grid;gap:16px;margin:0;padding:0;list-style:none}
-  .scope-list .what{font-size:14.5px;color:var(--text);font-weight:600;margin:0 0 3px}
-  .scope-list .why{font-size:13.5px;color:var(--muted);line-height:1.6;margin:0}
 
   /* roadmap */
   .road{display:grid;gap:12px}
@@ -268,20 +260,11 @@
         一句话总结：知档只做"帮你把自己的账号搬到自己的硬盘"这一件事，凡是会让它变成一个抓取工具或云服务的做法，都不在范围内。
       </p>
 
-      <div class="b-group" style="margin-top:8px">
-        <h3>知档的产品边界（这些不是没做完，是刻意不做）</h3>
-        <ul class="scope-list">
-          <li><p class="what">从归档生成网站，以及网站托管、域名、DNS</p><p class="why">发布是另一件事，混进"归档"这层会让它变得不稳定，交给独立项目做。</p></li>
-          <li><p class="what">内容编辑、草稿、版本历史</p><p class="why">知档存的是已发布内容的忠实副本，不是创作工具。</p></li>
-          <li><p class="what">AI 分类、摘要、检索、个人写作模型</p><p class="why">这类功能依赖持续变化的模型和算法，知档想保持的是"很多年后打开还能用"的稳定数据层，两种目标放在一起会互相拖累。</p></li>
-          <li><p class="what">云同步、多设备账号体系</p><p class="why">一旦加云同步，"内容不经过任何服务器"这条前面所有的承诺就不成立了。</p></li>
-        </ul>
-      </div>
-
       <p class="section-intro" style="margin-top:24px">
         这是独立开发的非官方项目，与知乎不存在隶属、合作、授权或认可关系；目前只在 macOS（Apple Silicon）上完整测试，使用免费 ad-hoc 签名，首次打开需在系统设置里手动允许一次。详见
         <a href="https://github.com/zhangyingfeng/zhi-dang/blob/main/docs/DISCLAIMER.md">免责声明</a> ·
-        <a href="https://github.com/zhangyingfeng/zhi-dang/blob/main/docs/ACCEPTABLE_USE.md">可接受使用</a>。
+        <a href="https://github.com/zhangyingfeng/zhi-dang/blob/main/docs/ACCEPTABLE_USE.md">可接受使用</a>。开发计划见
+        <a href="https://github.com/zhangyingfeng/zhi-dang/blob/main/docs/ROADMAP.md">ROADMAP.md</a>。
       </p>
     </section>
 

@@ -235,33 +235,37 @@
 
     <section id="scope">
       <h2>知档不是爬虫，是用户授权的归档工具</h2>
-      <p class="section-intro">知档不抓取知乎，也不采集别人的内容——它只在你本人登录之后，把<strong>你自己</strong>账号下的回答和文章搬到<strong>你自己</strong>的电脑上。没有你的登录、没有你的操作，知档什么也拿不到。这是理解下面所有设计和边界的前提。拿"大规模爬虫式工具"做对比，一眼就能看清楚：</p>
+      <p class="section-intro">知档不抓取知乎，也不采集别人的内容——它只在你本人登录之后，把<strong>你自己</strong>账号下的回答和文章搬到<strong>你自己</strong>的电脑上。没有你的登录、没有你的操作，知档什么也拿不到。这是理解下面所有设计和边界的前提。拿大规模采集工具做对比，一眼就能看清楚：</p>
 
       <div class="cmp-wrap">
         <table class="cmp">
           <thead>
-            <tr><th>问题</th><th>大规模爬虫式工具</th><th>现在的知档</th></tr>
+            <tr><th>问题</th><th>大规模采集工具</th><th>现在的知档</th></tr>
           </thead>
           <tbody>
-            <tr><td>抓别人发布的内容</td><td>经常</td><td>不允许——只导出当前登录账号本人的回答和文章</td></tr>
-            <tr><td>聚合整个平台的数据</td><td>是</td><td>否——每次只处理你自己这一个账号</td></tr>
-            <tr><td>获取评论者、粉丝、关注关系等他人资料</td><td>经常</td><td>明确不获取</td></tr>
-            <tr><td>把抓到的数据公开重新提供给别人</td><td>是</td><td>否——导出结果只留在你自己电脑上</td></tr>
-            <tr><td>替代平台本身的浏览服务</td><td>可能</td><td>基本不会——只做备份，不做内容消费产品</td></tr>
-            <tr><td>用户授权方式</td><td>不一定，常靠密码/Cookie 池</td><td>本人在登录窗口正常登录</td></tr>
-            <tr><td>遇到验证码</td><td>常见的绕过对象</td><td>交给你本人完成，不绕过</td></tr>
-            <tr><td>代理池 / 账号池</td><td>常见</td><td>明确不用</td></tr>
-            <tr><td>数据是否经过开发者的服务器</td><td>常见</td><td>没有——本地直连知乎，本地写文件</td></tr>
-            <tr><td>保存位置</td><td>开发者的云端数据库</td><td>你自己电脑上的文件夹</td></tr>
+            <tr><td>抓别人发布的内容</td><td>可能大量采集</td><td>不支持——只导出当前登录账号本人的回答和文章</td></tr>
+            <tr><td>聚合整个平台的数据</td><td>常见</td><td>否——每次只处理你自己这一个账号</td></tr>
+            <tr><td>获取评论者、粉丝、关注关系等他人资料</td><td>可能</td><td>明确不获取</td></tr>
+            <tr><td>把抓到的数据公开重新提供给别人</td><td>可能</td><td>否——导出结果只留在你自己电脑上</td></tr>
+            <tr><td>替代平台本身的浏览服务</td><td>可能</td><td>否——只做备份，不做内容消费产品</td></tr>
+            <tr><td>用户授权方式</td><td>可能使用集中式凭证或自动化账号</td><td>本人在登录窗口正常登录</td></tr>
+            <tr><td>遇到验证码</td><td>可能尝试自动处理</td><td>交给你本人完成，不绕过</td></tr>
+            <tr><td>代理池 / 账号池</td><td>可能使用</td><td>不使用</td></tr>
+            <tr><td>数据是否经过开发者的服务器</td><td>可能</td><td>不经过——本地直连知乎，本地写文件</td></tr>
+            <tr><td>保存位置</td><td>可能进入第三方数据库</td><td>你自己电脑上的文件夹</td></tr>
           </tbody>
         </table>
       </div>
       <p class="section-intro" style="margin-top:16px">
-        一句话总结：知档只做"帮你把自己的账号搬到自己的硬盘"这一件事，凡是会让它变成一个抓取工具或云服务的做法，都不在范围内。
+        一句话总结：知档只做"帮你把自己的账号搬到自己的硬盘"这一件事，任何会让它变成内容聚合服务、大规模采集工具或访问控制绕过工具的能力，都不属于知档的产品范围。
       </p>
 
-      <p class="section-intro" style="margin-top:24px">
-        这是独立开发的非官方项目，与知乎不存在隶属、合作、授权或认可关系；目前只在 macOS（Apple Silicon）上完整测试，使用免费 ad-hoc 签名，首次打开需在系统设置里手动允许一次。详见
+      <p class="section-intro" style="margin-top:18px">
+        这是独立开发的非官方项目，与知乎不存在隶属、合作、授权或认可关系。同时，知档希望在条件允许时，<strong>优先采用知乎官方提供的数据接口和用户授权机制</strong>——如果未来存在适用于"作者读取并导出本人创作"的正式接口，项目将优先评估采用官方方案。
+      </p>
+
+      <p class="section-intro" style="margin-top:18px">
+        目前只在 macOS（Apple Silicon）上完整测试，使用免费 ad-hoc 签名，首次打开需在系统设置里手动允许一次。详见
         <a href="https://github.com/zhangyingfeng/zhi-dang/blob/main/docs/DISCLAIMER.md">免责声明</a> ·
         <a href="https://github.com/zhangyingfeng/zhi-dang/blob/main/docs/ACCEPTABLE_USE.md">可接受使用</a>。开发计划见
         <a href="https://github.com/zhangyingfeng/zhi-dang/blob/main/docs/ROADMAP.md">ROADMAP.md</a>。

@@ -1,17 +1,17 @@
-// Entry point for the direct-connect edition (GitHub release / Developer ID
+// Entry point for the login edition (GitHub release / Developer ID
 // build). Bun compiles this file specifically — see scripts/build-sidecar.sh
 // — into the "zhidang-server" sidecar the Tauri app spawns.
 import { z } from "zod";
 import { createServer, listen } from "./server.js";
-import { DirectContentSource } from "./source/direct.js";
+import { LoginContentSource } from "./source/login.js";
 import { fetchViaFrontend, waitForFrontendRequest, submitFrontendResult } from "./frontendBridge.js";
 
 const app = createServer({
-  edition: "direct",
+  edition: "login",
   credentialField: "urlToken",
-  createSource: (urlToken) => new DirectContentSource(urlToken, fetchViaFrontend),
+  createSource: (urlToken) => new LoginContentSource(urlToken, fetchViaFrontend),
   // Only this edition needs the login-window relay: requests queued by
-  // DirectContentSource are drained by the frontend (see public/app.js's
+  // LoginContentSource are drained by the frontend (see public/app.js's
   // relayFrontendFetches) and run as fetch() inside the Tauri login
   // window's own page context (src-tauri/src/lib.rs's do_zhihu_fetch).
   registerExtraRoutes(app) {

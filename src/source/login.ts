@@ -6,7 +6,7 @@ import type { ZhihuItem } from "../types.js";
 // ContentSource. Zhihu's member-listing endpoint already returns full HTML
 // content per item, so there's no separate per-item fetch — fetchBody is a
 // no-op that just hands back what listAll already collected.
-export class DirectContentSource implements ContentSource {
+export class LoginContentSource implements ContentSource {
   constructor(private urlToken: string, private fetchPage: PageFetcher, private delayMs = 800) {}
 
   // onCount reports a running total across both listings (answers first,

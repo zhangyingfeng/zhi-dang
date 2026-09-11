@@ -1,6 +1,6 @@
 [package]
 name = "app"
-version = "1.1.1"
+version = "1.2.0"
 description = "知档桌面客户端"
 authors = ["zhangyingfeng"]
 license = "MIT"
@@ -19,20 +19,20 @@ tauri-build = { version = "2.6.3", features = [] }
 
 [features]
 default = []
-# The direct edition (webview login window + page-context fetch relay, see
+# The login edition (webview login window + page-context fetch relay, see
 # do_zhihu_fetch) is deliberately *not* a named feature — it's expressed in
-# lib.rs as #[cfg(not(feature = "appstore"))], so a bare `cargo build` /
+# lib.rs as #[cfg(not(feature = "key"))], so a bare `cargo build` /
 # `cargo check` / `tauri build` (no flags at all) keeps compiling exactly
-# what it always has. Only opting into "appstore" below changes anything —
+# what it always has. Only opting into "key" below changes anything —
 # there is no `--no-default-features` juggling needed to keep the two
 # mutually exclusive (the Tauri CLI's `-f/--features` flag can only add
-# features, never remove the default one, so a real "direct" feature here
-# would risk both editions' commands landing in the same appstore binary).
+# features, never remove the default one, so a real "login" feature here
+# would risk both editions' commands landing in the same key-edition binary).
 #
 # No login window, no session relay at all in this edition — only Access
 # Secret storage via the OS keychain, talking to Zhihu's official Data Open
 # Platform instead. See docs/DEVELOPMENT.md for why this split exists.
-appstore = ["dep:keyring"]
+key = ["dep:keyring"]
 
 [dependencies]
 serde_json = "1.0"

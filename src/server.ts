@@ -12,16 +12,16 @@ import type { DuplicateInfo, ExportControl, ExportRecord, ExportTask, Progress, 
 // filesystem would break in the packaged app, where cwd isn't reliable.
 import pkg from "../package.json" with { type: "json" };
 
-// The shape server.ts needs from each edition's entry file (src/index.direct.ts,
-// src/index.official.ts): which ContentSource to build once the caller's
-// credential (Zhihu url_token for direct, an Access Secret for official) is
-// known, and — for direct only — extra routes the login-window relay needs.
+// The shape server.ts needs from each edition's entry file (src/index.login.ts,
+// src/index.key.ts): which ContentSource to build once the caller's
+// credential (Zhihu url_token for login, an Access Secret for key) is
+// known, and — for login only — extra routes the login-window relay needs.
 // Everything else (task list, pause/resume/skip, export-report/index.json,
 // the about panel) is edition-agnostic and lives entirely in this file.
 export interface ServerOptions {
-  edition: "direct" | "official";
+  edition: "login" | "key";
   // Name of the field /api/export's request body carries the credential
-  // under — "urlToken" for direct, "accessSecret" for official — so the two
+  // under — "urlToken" for login, "accessSecret" for key — so the two
   // editions can keep their own vocabulary without server.ts hardcoding either.
   credentialField: string;
   createSource: (credential: string) => ContentSource;
@@ -113,7 +113,7 @@ export function createServer(opts: ServerOptions) {
         // together as false positives.
         //
         // Only meaningful when listAll already returns full bodies (the
-        // direct source). A source whose listing is metadata/excerpt-only
+        // login source). A source whose listing is metadata/excerpt-only
         // (see ContentSource.fetchBody) hasn't fetched html yet at this
         // point — every item's normalized length is 0, so this pass is a
         // no-op for it rather than a false "no duplicates" claim; there's

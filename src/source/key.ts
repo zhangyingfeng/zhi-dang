@@ -4,8 +4,8 @@ import { QuotaExhaustedError, type ContentSource } from "./types.js";
 import type { ContentKind, ListingReport, ZhihuItem } from "../types.js";
 
 // Zhihu's official Data Open Platform (developer.zhihu.com) — the
-// App-Store-safe replacement for the webview-relay direct source. Every
-// call is a plain bearer-token REST request; unlike direct.ts, none of this
+// App-Store-safe replacement for the webview-relay login source. Every
+// call is a plain bearer-token REST request; unlike login.ts, none of this
 // needs the Tauri login window or its page-context fetch relay.
 const OFFICIAL_API_BASE = "https://developer.zhihu.com/api/v1";
 
@@ -73,7 +73,7 @@ function normalizeOfficialItem(kind: ContentKind, x: any): ZhihuItem {
   };
 }
 
-export class OfficialApiContentSource implements ContentSource {
+export class KeyContentSource implements ContentSource {
   constructor(private accessSecret: string, private delayMs = 300) {}
 
   async listAll(onCount?: (n: number) => void) {
@@ -92,7 +92,7 @@ export class OfficialApiContentSource implements ContentSource {
       for (const raw of items) {
         const kind: ContentKind | null = raw.ContentType === "answer" ? "answer" : raw.ContentType === "article" ? "article" : null;
         // pin/zvideo/question are out of scope — 知档 only archives answers
-        // and articles, matching the direct source's coverage.
+        // and articles, matching the login source's coverage.
         if (!kind) continue;
         const bucket = buckets[kind];
         bucket.received++;
@@ -137,10 +137,10 @@ export class OfficialApiContentSource implements ContentSource {
   }
 }
 
-export interface OfficialQuota { apiId: string; name: string; total: number; used: number; remaining: number }
+export interface KeyQuota { apiId: string; name: string; total: number; used: number; remaining: number }
 // Doesn't consume business quota (per the open platform's own docs) — safe
 // to call as often as the UI wants to show "今日剩余 N 次".
-export async function fetchOfficialQuota(secret: string, apiIds: string[] = ["creator"]): Promise<OfficialQuota[]> {
+export async function fetchKeyQuota(secret: string, apiIds: string[] = ["creator"]): Promise<KeyQuota[]> {
   const page = await callOfficialApi("quota", { APIIDs: apiIds.join(",") }, secret);
   if (page.Code !== 0) throw new Error(officialErrorMessage(page.Code, page.Message));
   return (page.Data ?? []).map((q: any) => ({ apiId: q.APIID, name: q.APIName, total: Number(q.TotalQuota), used: Number(q.TotalUsed), remaining: Number(q.RemainingQuota) }));

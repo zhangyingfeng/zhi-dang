@@ -1,10 +1,10 @@
 import test from "node:test"; import assert from "node:assert/strict";
-import { OfficialApiContentSource, fetchOfficialQuota } from "../src/source/official.js";
+import { KeyContentSource, fetchKeyQuota } from "../src/source/key.js";
 import { QuotaExhaustedError } from "../src/source/types.js";
 import type { ZhihuItem } from "../src/types.js";
 
 // Stubs global fetch for the duration of `run`, routing every call through
-// `handler(url)` to produce the JSON body — callOfficialApi (src/source/official.ts)
+// `handler(url)` to produce the JSON body — callOfficialApi (src/source/key.ts)
 // always parses a { Code, Message, Data } shape, so that's all handler needs to return.
 async function withMockFetch(handler: (url: URL) => unknown, run: () => Promise<void>) {
   const original = globalThis.fetch;
@@ -32,7 +32,7 @@ test("listAll paginates via Offset/NextOffset, maps answer/article, and drops ot
     assert.equal(url.pathname, "/api/v1/user/contents");
     return pages[Number(url.searchParams.get("Offset"))];
   }, async () => {
-    const source = new OfficialApiContentSource("secret", 0);
+    const source = new KeyContentSource("secret", 0);
     const { items, reports } = await source.listAll();
     assert.equal(items.length, 2);
     assert.deepEqual(items.map((i) => i.kind).sort(), ["answer", "article"]);
@@ -55,7 +55,7 @@ test("listAll counts same-kind duplicate ids without dropping the first occurren
     { ContentType: "answer", Url: "https://www.zhihu.com/answer/1", Title: "A" },
     { ContentType: "answer", Url: "https://www.zhihu.com/answer/1", Title: "A dup" },
   ], Paging: { IsEnd: true } } }), async () => {
-    const source = new OfficialApiContentSource("secret", 0);
+    const source = new KeyContentSource("secret", 0);
     const { items, reports } = await source.listAll();
     assert.equal(items.length, 1);
     const answerReport = reports.find((r) => r.kind === "answer")!;
@@ -67,14 +67,14 @@ test("listAll counts same-kind duplicate ids without dropping the first occurren
 
 test("listAll throws a descriptive error when a page isn't final but has no NextOffset", async () => {
   await withMockFetch(() => ({ Code: 0, Message: "success", Data: { Items: [], Paging: { IsEnd: false } } }), async () => {
-    const source = new OfficialApiContentSource("secret", 0);
+    const source = new KeyContentSource("secret", 0);
     await assert.rejects(source.listAll(), /分页数据不完整/);
   });
 });
 
 test("listAll throws a descriptive error when the listing call itself fails", async () => {
   await withMockFetch(() => ({ Code: 20001, Message: "鉴权失败" }), async () => {
-    const source = new OfficialApiContentSource("secret", 0);
+    const source = new KeyContentSource("secret", 0);
     await assert.rejects(source.listAll(), /20001/);
   });
 });
@@ -85,7 +85,7 @@ test("fetchBody returns the full body text on success", async () => {
     assert.equal(url.searchParams.get("ContentUrl"), sampleItem.url);
     return { Code: 0, Message: "success", Data: { ContentType: "answer", Url: sampleItem.url, Title: "A", Body: "<p>full</p>" } };
   }, async () => {
-    const source = new OfficialApiContentSource("secret");
+    const source = new KeyContentSource("secret");
     assert.equal(await source.fetchBody(sampleItem), "<p>full</p>");
   });
 });
@@ -93,7 +93,7 @@ test("fetchBody returns the full body text on success", async () => {
 test("fetchBody throws QuotaExhaustedError on the quota/rate-limit codes (30001, 30002)", async () => {
   for (const code of [30001, 30002]) {
     await withMockFetch(() => ({ Code: code, Message: "限流" }), async () => {
-      const source = new OfficialApiContentSource("secret");
+      const source = new KeyContentSource("secret");
       await assert.rejects(source.fetchBody(sampleItem), QuotaExhaustedError);
     });
   }
@@ -101,17 +101,17 @@ test("fetchBody throws QuotaExhaustedError on the quota/rate-limit codes (30001,
 
 test("fetchBody throws a plain (non-quota) Error on other failure codes", async () => {
   await withMockFetch(() => ({ Code: 20001, Message: "鉴权失败" }), async () => {
-    const source = new OfficialApiContentSource("secret");
+    const source = new KeyContentSource("secret");
     await assert.rejects(source.fetchBody(sampleItem), (err: unknown) => err instanceof Error && !(err instanceof QuotaExhaustedError) && /鉴权失败/.test(err.message));
   });
 });
 
-test("fetchOfficialQuota maps the Data array into a stable shape", async () => {
+test("fetchKeyQuota maps the Data array into a stable shape", async () => {
   await withMockFetch((url) => {
     assert.equal(url.pathname, "/api/v1/quota");
     assert.equal(url.searchParams.get("APIIDs"), "creator");
     return { Code: 0, Message: "success", Data: [{ APIID: "creator", APIName: "创作能力", TotalQuota: 100, TotalUsed: 12, RemainingQuota: 88 }] };
   }, async () => {
-    assert.deepEqual(await fetchOfficialQuota("secret"), [{ apiId: "creator", name: "创作能力", total: 100, used: 12, remaining: 88 }]);
+    assert.deepEqual(await fetchKeyQuota("secret"), [{ apiId: "creator", name: "创作能力", total: 100, used: 12, remaining: 88 }]);
   });
 });

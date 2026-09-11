@@ -197,6 +197,7 @@
     </a>
     <nav>
       <a href="#scope">不是爬虫</a>
+      <a href="#editions">两个版本</a>
       <a href="#how">怎么用</a>
       <a href="#privacy">隐私</a>
       <a href="https://github.com/zhangyingfeng/zhi-dang">GitHub</a>
@@ -213,11 +214,17 @@
       <p class="lede">本地归档你的知乎回答和文章</p>
       <p class="sub">「知档」即知乎作者归档。一个安全、开源的内容导出工具，方便作者把知乎上自己的内容归档导出为 Markdown、JSON 和本地图片。</p>
       <div class="cta">
-        <a class="btn btn-primary" id="download" href="https://github.com/zhangyingfeng/zhi-dang/releases/latest">
-          下载 · macOS（Apple Silicon）
+        <a class="btn btn-primary" id="download-direct" href="https://github.com/zhangyingfeng/zhi-dang/releases/latest">
+          下载直连版 · macOS（Apple Silicon）
         </a>
-        <a class="btn btn-ghost" href="https://github.com/zhangyingfeng/zhi-dang">在 GitHub 查看源码</a>
+        <a class="btn btn-ghost" id="download-official" href="https://github.com/zhangyingfeng/zhi-dang/releases/latest">
+          下载官方 API 版
+        </a>
       </div>
+      <p class="meta">
+        拿不准选哪个？看下面<a href="#editions">两个版本的区别</a> ·
+        <a href="https://github.com/zhangyingfeng/zhi-dang">在 GitHub 查看源码</a>
+      </p>
       <p class="meta">
         <span id="version">版本与更新记录见 GitHub Releases</span> · 仅 macOS Apple Silicon ·
         首次打开需在「系统设置 → 隐私与安全性」里手动允许一次（<a href="https://github.com/zhangyingfeng/zhi-dang/blob/main/docs/GETTING_STARTED.md">图文教程</a>）
@@ -261,7 +268,7 @@
       </p>
 
       <p class="section-intro" style="margin-top:18px">
-        这是独立开发的非官方项目，与知乎不存在隶属、合作、授权或认可关系。同时，知档希望在条件允许时，<strong>优先采用知乎官方提供的数据接口和用户授权机制</strong>——如果未来存在适用于"作者读取并导出本人创作"的正式接口，项目将优先评估采用官方方案。
+        这是独立开发的非官方项目，与知乎不存在隶属、合作、授权或认可关系。
       </p>
 
       <p class="section-intro" style="margin-top:18px">
@@ -269,6 +276,29 @@
         <a href="https://github.com/zhangyingfeng/zhi-dang/blob/main/docs/DISCLAIMER.md">免责声明</a> ·
         <a href="https://github.com/zhangyingfeng/zhi-dang/blob/main/docs/ACCEPTABLE_USE.md">可接受使用</a>。开发计划见
         <a href="https://github.com/zhangyingfeng/zhi-dang/blob/main/docs/ROADMAP.md">ROADMAP.md</a>。
+      </p>
+    </section>
+
+    <section id="editions">
+      <h2>两个版本，选一个就够</h2>
+      <p class="section-intro">归档格式和隐私原则完全一致，区别只在内容怎么从知乎拿到手。拿不准就下载<strong>直连版</strong>——这是默认、经过更长时间验证的路径。</p>
+
+      <div class="cmp-wrap">
+        <table class="cmp">
+          <thead>
+            <tr><th>&nbsp;</th><th>直连版</th><th>官方 API 版</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>登录方式</td><td>内嵌知乎登录窗口，正常账号登录</td><td>粘贴知乎开放平台生成的 Access Secret，无需登录窗口</td></tr>
+            <tr><td>每日次数限制</td><td>无</td><td>知乎官方额度：100 次/天（未实名 10 次），一篇内容对应一次，用完自动停止、次日续传</td></tr>
+            <tr><td>欢迎语 / 文件夹命名</td><td>真实知乎昵称</td><td>官方接口不返回昵称——可选贴一次主页链接代替，不贴则显示当日剩余额度</td></tr>
+            <tr><td>精确重复检测</td><td>有（同一篇内容以回答和文章形式重复发布时会提示）</td><td>暂不支持（官方列表接口不含全文，去重前不能先把内容都拉一遍）</td></tr>
+            <tr><td>数据来源</td><td>知乎网页版接口</td><td>知乎官方数据开放平台</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="section-intro" style="margin-top:16px">
+        两版怎么选、代码里怎么实现，见 <a href="https://github.com/zhangyingfeng/zhi-dang/blob/main/docs/DEVELOPMENT.md">开发者文档</a>。
       </p>
     </section>
 
@@ -374,8 +404,16 @@
           <p><strong>导出体验重构</strong>：list-first 流程、每项进度可见、精确内容哈希检测重复（只读提示）、暂停/继续、单项跳过、断点续传。1.1 已正式发布。</p>
         </div>
         <div class="row">
+          <span class="tag">已完成</span>
+          <p><strong>官方 API 版</strong>：知乎官方数据开放平台接入，不需要登录窗口，为将来上架 App Store 打下基础。1.2 已正式发布，两版本区别见上方。</p>
+        </div>
+        <div class="row">
           <span class="tag">规划中</span>
-          <p><strong>Apple 签名 + 公证</strong>：官网直接分发，消除 Gatekeeper 警告。</p>
+          <p><strong>Apple 签名 + 公证</strong>：两个版本都做，官网直接分发消除 Gatekeeper 警告。</p>
+        </div>
+        <div class="row">
+          <span class="tag">规划中</span>
+          <p><strong>提交 Mac App Store</strong>（官方 API 版）：需要 App Sandbox 改造和 entitlements 配置。</p>
         </div>
         <div class="row">
           <span class="tag">规划中</span>
@@ -410,8 +448,11 @@
 
 <script>
   // No analytics, no third-party scripts. One optional call to GitHub's public
-  // API to resolve the latest release's version + .dmg asset; on any failure
-  // the static links above are already correct.
+  // API to resolve the latest release's version + each edition's .dmg asset;
+  // on any failure the static links above (both pointing at releases/latest)
+  // are already a reasonable fallback. The two editions' .dmg files are
+  // told apart by filename — see docs/MAINTENANCE.md's release steps for the
+  // exact naming convention (zhidang-direct_*.dmg / zhidang-official_*.dmg).
   (function () {
     var REPO = "zhangyingfeng/zhi-dang";
     fetch("https://api.github.com/repos/" + REPO + "/releases/latest", {
@@ -422,9 +463,14 @@
         if (rel.tag_name) {
           document.getElementById("version").textContent = "当前 " + rel.tag_name.replace(/^v/, "");
         }
-        var dmg = (rel.assets || []).find(function (a) { return /\.dmg$/i.test(a.name); });
-        if (dmg && dmg.browser_download_url) {
-          document.getElementById("download").href = dmg.browser_download_url;
+        var assets = rel.assets || [];
+        var officialDmg = assets.find(function (a) { return /\.dmg$/i.test(a.name) && /official/i.test(a.name); });
+        var directDmg = assets.find(function (a) { return /\.dmg$/i.test(a.name) && !/official/i.test(a.name); });
+        if (directDmg && directDmg.browser_download_url) {
+          document.getElementById("download-direct").href = directDmg.browser_download_url;
+        }
+        if (officialDmg && officialDmg.browser_download_url) {
+          document.getElementById("download-official").href = officialDmg.browser_download_url;
         }
       })
       .catch(function () { /* keep static fallbacks */ });

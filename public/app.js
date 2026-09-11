@@ -214,7 +214,7 @@ function setAuthUI(nextLoggedIn,name,detail){
   // names the actual effect instead of implying a plain settings save.
   btn.textContent=loggedIn?"退出登录":isOfficial?"验证并登录":"开始登录";
   btn.classList.toggle("secondary",loggedIn);
-  $("step-title").textContent=loggedIn?(name?`欢迎 ${name}，可以下载`:(isOfficial?"知乎官方 API 已连接":"可以下载")):isOfficial?"配置知乎官方 API":"登录知乎导出";
+  $("step-title").textContent=loggedIn?(name?`欢迎 ${name}，可以下载`:(isOfficial?"知乎开放平台已连接":"可以下载")):isOfficial?"配置知乎开放平台":"登录知乎导出";
   if(loggedIn&&isOfficial){
     // Access Secret auth has no equivalent of a display name (only Zhihu
     // OAuth exposes profile info, and this edition deliberately doesn't use
@@ -223,7 +223,7 @@ function setAuthUI(nextLoggedIn,name,detail){
     // has, via checkOfficialQuota/formatQuotaLine below. The "额度说明" link
     // only makes sense next to this line, so it's shown/hidden together.
     $("auth-status").hidden=false;
-    $("auth-status-text").textContent=detail||"官方 API 已连接";
+    $("auth-status-text").textContent=detail||"知乎开放平台已连接";
     $("quota-help-btn").hidden=false;
   }else{
     // Once logged in (direct edition) this line would just repeat the
@@ -263,8 +263,8 @@ async function checkOfficialQuota(secret){
 function formatQuotaLine(quotaList){
   const creator=(quotaList||[]).find((q)=>q.apiId==="creator");
   officialQuotaRemaining=creator?creator.remaining:null;
-  if(!creator) return "官方 API 已连接";
-  return `官方 API 已连接 · 今日创作能力额度剩余 ${creator.remaining}/${creator.total} 次`;
+  if(!creator) return "知乎开放平台已连接";
+  return `知乎开放平台已连接 · 今日创作能力额度剩余 ${creator.remaining}/${creator.total} 次`;
 }
 // Called right after login and again whenever an export run finishes —
 // those are the only moments the number can actually have changed, so this
@@ -423,7 +423,7 @@ function openAbout(){
   $("about-overlay").hidden=false;
   fetch("/api/about").then(readJson).then(({version,edition:e})=>{
     $("about-version").textContent=version;
-    $("about-edition").textContent=e==="official"?"官方 API 版":"直连版";
+    $("about-edition").textContent=e==="official"?"开放平台版":"直连版";
   }).catch(()=>{});
 }
 function closeAbout(){ $("about-overlay").hidden=true; }
@@ -549,7 +549,7 @@ setInterval(async()=>{try{
       // item was exported or 166 items in, the user needs to actually see
       // why the run stopped short, not just infer it from a static message
       // line. A native modal blocks until acknowledged.
-      if(p.phase==="quota") invoke("plugin:dialog|message",{message:p.message,title:"知档 · 官方 API 配额已用完",kind:"warning"}).catch(()=>{});
+      if(p.phase==="quota") invoke("plugin:dialog|message",{message:p.message,title:"知档 · 开放平台配额已用完",kind:"warning"}).catch(()=>{});
       completedAtDir=$("dir").value;
       refreshQuotaDisplay();
     }

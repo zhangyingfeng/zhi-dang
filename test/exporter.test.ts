@@ -2,9 +2,14 @@ import test from "node:test"; import assert from "node:assert/strict";
 import { mkdtemp, readFile } from "node:fs/promises"; import os from "node:os"; import path from "node:path";
 import { Exporter } from "../src/exporter.js";
 import { assertSafeOutputDir } from "../src/util.js";
+import type { ContentSource } from "../src/source/types.js";
 import type { ExportControl, ExportRecord, TaskEvent, ZhihuItem } from "../src/types.js";
 
 const tmpDir=()=>mkdtemp(path.join(os.tmpdir(),"export-test-"));
+// A source that already has full content (mirrors DirectContentSource) —
+// fetchBody is a no-op, matching every one of these tests' assumption that
+// item.html is already the full body to write.
+const identitySource:ContentSource={listAll:async()=>({items:[],reports:[]}),fetchBody:async(item)=>item.html};
 const item=(id:string,overrides:Partial<ZhihuItem>={}):ZhihuItem=>({
   id,kind:"answer",questionId:"q1",title:`标题 ${id}`,url:`https://example.com/${id}`,
   html:`<p>正文 ${id}</p>`,excerpt:"",created:1700000000,updated:1700000000,
@@ -15,7 +20,7 @@ const freshControl=(overrides:Partial<ExportControl>={}):ExportControl=>({paused
 test("a skipped item is excluded from output and recorded in the report, not treated as a failure",async()=>{
   const outputDir=await tmpDir(); const events:TaskEvent[]=[];
   const control=freshControl({skippedItemIds:new Set(["2"])});
-  await new Exporter().export([item("1"),item("2"),item("3")],[],{outputDir,downloadImages:false,delayMs:0},e=>events.push(e),control);
+  await new Exporter().export([item("1"),item("2"),item("3")],[],{outputDir,downloadImages:false,delayMs:0},identitySource,e=>events.push(e),control);
   const report=JSON.parse(await readFile(path.join(outputDir,"export-report.json"),"utf8"));
   assert.equal(report.summary.skipped,1);
   assert.equal(report.summary.succeeded,2);
@@ -28,7 +33,7 @@ test("a skipped item is excluded from output and recorded in the report, not tre
 test("pausing blocks the loop until resumed, without dropping any items",async()=>{
   const outputDir=await tmpDir(); const events:TaskEvent[]=[];
   const control=freshControl({paused:true});
-  const run=new Exporter().export([item("1"),item("2")],[],{outputDir,downloadImages:false,delayMs:0},e=>events.push(e),control);
+  const run=new Exporter().export([item("1"),item("2")],[],{outputDir,downloadImages:false,delayMs:0},identitySource,e=>events.push(e),control);
   await new Promise(r=>setTimeout(r,150));
   assert.equal(events.length,0,"no item should start while paused");
   control.paused=false;
@@ -41,7 +46,7 @@ test("pausing blocks the loop until resumed, without dropping any items",async()
 test("skipping just the images subtask still writes the item, without downloading images",async()=>{
   const outputDir=await tmpDir(); const events:TaskEvent[]=[];
   const control=freshControl({skipImagesItemIds:new Set(["1"])});
-  await new Exporter().export([item("1",{html:`<p>正文</p><img src="https://example.com/pic.jpg">`})],[],{outputDir,downloadImages:true,delayMs:0},e=>events.push(e),control);
+  await new Exporter().export([item("1",{html:`<p>正文</p><img src="https://example.com/pic.jpg">`})],[],{outputDir,downloadImages:true,delayMs:0},identitySource,e=>events.push(e),control);
   assert.ok(events.some(e=>e.type==="subtask"&&e.id==="1"&&e.key==="images"&&e.status==="skipped"));
   assert.ok(!events.some(e=>e.type==="images-list"),"a skipped images subtask should never enumerate URLs to fetch");
   const report=JSON.parse(await readFile(path.join(outputDir,"export-report.json"),"utf8"));
@@ -62,7 +67,7 @@ test("a manifest is left behind after every item, not just at the end (so an int
     try{ seenTotalsAtEachWrite.push(JSON.parse(await readFile(path.join(outputDir,"index.json"),"utf8")).summary.succeeded); }
     catch{ seenTotalsAtEachWrite.push(-1); }
   };
-  await new Exporter().export([item("1"),item("2"),item("3")],[],{outputDir,downloadImages:false,delayMs:80},e=>{ void onEvent(e); },control);
+  await new Exporter().export([item("1"),item("2"),item("3")],[],{outputDir,downloadImages:false,delayMs:80},identitySource,e=>{ void onEvent(e); },control);
   await new Promise(r=>setTimeout(r,30));
   assert.deepEqual(seenTotalsAtEachWrite,[1,2,3],"index.json's succeeded count should climb with each item, not jump straight to 3");
 });
@@ -75,7 +80,7 @@ test("resuming a directory replays already-finished items without redoing them, 
   // directory that discovers three items (the original two, plus a new
   // one Zhihu returned this time).
   const firstEvents:TaskEvent[]=[];
-  await new Exporter().export([item("1"),item("2")],[],{outputDir,downloadImages:false,delayMs:0},e=>firstEvents.push(e),freshControl());
+  await new Exporter().export([item("1"),item("2")],[],{outputDir,downloadImages:false,delayMs:0},identitySource,e=>firstEvents.push(e),freshControl());
   assert.ok(firstEvents.some(e=>e.type==="start"&&e.id==="1"));
   assert.ok(firstEvents.some(e=>e.type==="start"&&e.id==="2"));
 
@@ -88,7 +93,7 @@ test("resuming a directory replays already-finished items without redoing them, 
 
   const secondEvents:TaskEvent[]=[];
   const control=freshControl({resumedRecords});
-  await new Exporter().export([item("1"),item("2"),item("3")],[],{outputDir,downloadImages:false,delayMs:0},e=>secondEvents.push(e),control);
+  await new Exporter().export([item("1"),item("2"),item("3")],[],{outputDir,downloadImages:false,delayMs:0},identitySource,e=>secondEvents.push(e),control);
 
   assert.ok(!secondEvents.some(e=>e.type==="start"&&(e.id==="1"||e.id==="2")),"already-finished items must not be reprocessed on resume");
   assert.ok(secondEvents.some(e=>e.type==="start"&&e.id==="3"),"a genuinely new item must still be processed normally");

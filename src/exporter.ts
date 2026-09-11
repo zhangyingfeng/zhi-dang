@@ -5,6 +5,7 @@ import TurndownService from "turndown";
 import type { ExportControl, ExportOptions, ExportRecord, ListingReport, TaskEvent, ZhihuItem } from "./types.js";
 import { isoDate, safeName, sleep, writeFileAtomic, writeJson } from "./util.js";
 import { downloadImage } from "./zhihu.js";
+import { QuotaExhaustedError, type ContentSource } from "./source/types.js";
 
 // Polled between items (and again between an item's subtasks) rather than
 // threaded through every inner await — see ExportControl's doc comment for
@@ -15,7 +16,7 @@ async function waitWhilePaused(control:ExportControl){ while(control.paused) awa
 export class Exporter {
   private td=new TurndownService({headingStyle:"atx",codeBlockStyle:"fenced",bulletListMarker:"-"});
   private imageCache=new Map<string,string>();
-  async export(items:ZhihuItem[],listingReports:ListingReport[],opts:ExportOptions,onEvent:(e:TaskEvent)=>void,control:ExportControl={paused:false,skippedItemIds:new Set(),skipImagesItemIds:new Set()}){
+  async export(items:ZhihuItem[],listingReports:ListingReport[],opts:ExportOptions,source:ContentSource,onEvent:(e:TaskEvent)=>void,control:ExportControl={paused:false,skippedItemIds:new Set(),skipImagesItemIds:new Set()}){
     this.imageCache.clear(); await mkdir(opts.outputDir,{recursive:true});
     const records:ExportRecord[]=[]; const imageFailures:ImageFailure[]=[]; const itemFailures:ItemFailure[]=[]; const skippedItems:SkippedItem[]=[];
     // Written after every item (not just once at the end) so an interrupted
@@ -24,15 +25,43 @@ export class Exporter {
     // presence, and the next run reads index.json back to seed
     // control.resumedRecords with whatever already finished.
     const persist=()=>this.writeManifests(opts.outputDir,items.length,listingReports,records,itemFailures,skippedItems,imageFailures);
+    let quotaExhausted=false;
     for(let i=0;i<items.length;i++){
       const item=items[i];
       if(control.skippedItemIds.has(item.id)){ skippedItems.push({itemId:item.id,kind:item.kind,title:item.title}); onEvent({type:"done",id:item.id,status:"skipped"}); await persist(); continue; }
       const resumed=control.resumedRecords?.get(item.id);
       if(resumed){ records.push(resumed); onEvent({type:"done",id:item.id,status:"done"}); await persist(); continue; }
+      // Once quota is exhausted, every remaining not-yet-done item must be
+      // left completely alone (still "pending", no fetchBody attempt) — but
+      // the loop itself must keep scanning rather than `break`ing out.
+      // Breaking here used to mean any already-resumed/already-skipped item
+      // *later* in this array (items sorted newest-first; quota typically
+      // runs out partway through, not at the very end) never got the chance
+      // to be re-affirmed into `records`/`skippedItems` above, so the next
+      // persist() call would write a manifest that had silently dropped
+      // them — a real data-loss bug: their .md files stayed untouched on
+      // disk, but index.json stopped listing them, so the *next* run's
+      // resume would treat them as never-done and burn quota re-fetching
+      // work that was already sitting in that very folder.
+      if(quotaExhausted) continue;
       await waitWhilePaused(control);
+      // Fetched (and, for a quota-limited source, potentially rejected)
+      // before announcing "start": on QuotaExhaustedError this item must
+      // stay untouched ("pending"), not recorded as started or failed, so a
+      // later run resumes it normally instead of the task list showing
+      // hundreds of identical quota errors.
+      let html:string;
+      try{ html=await source.fetchBody(item); }
+      catch(error){
+        if(error instanceof QuotaExhaustedError){ quotaExhausted=true; continue; }
+        const message=error instanceof Error?error.message:String(error);
+        onEvent({type:"start",id:item.id});
+        itemFailures.push({itemId:item.id,kind:item.kind,title:item.title,error:message}); onEvent({type:"done",id:item.id,status:"error",error:message});
+        await persist(); await sleep(opts.delayMs); continue;
+      }
       onEvent({type:"start",id:item.id});
       try{
-        const folder=path.join(opts.outputDir,item.kind==="answer"?"answers":"articles"); await mkdir(folder,{recursive:true}); let html=item.html; let cover:string|null=item.coverUrl;
+        const folder=path.join(opts.outputDir,item.kind==="answer"?"answers":"articles"); await mkdir(folder,{recursive:true}); let cover:string|null=item.coverUrl;
         if(opts.downloadImages){
           if(control.skipImagesItemIds.has(item.id)){
             onEvent({type:"subtask",id:item.id,key:"images",status:"skipped"});
@@ -55,6 +84,8 @@ export class Exporter {
       await persist();
       await sleep(opts.delayMs);
     }
+    await persist();
+    return { quotaExhausted };
   }
   private async writeManifests(outputDir:string,discovered:number,listingReports:ListingReport[],records:ExportRecord[],itemFailures:ItemFailure[],skippedItems:SkippedItem[],imageFailures:ImageFailure[]){
     const exportedAt=new Date().toISOString(); const summary={discovered,succeeded:records.length,failed:itemFailures.length,skipped:skippedItems.length,answers:records.filter(x=>x.kind==="answer").length,articles:records.filter(x=>x.kind==="article").length,imageFailures:imageFailures.length};

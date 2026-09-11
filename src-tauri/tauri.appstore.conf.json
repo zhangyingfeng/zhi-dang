@@ -1,0 +1,14 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "identifier": "com.zhangyingfeng.zhidang.appstore",
+  "build": {
+    "beforeDevCommand": "npm run dev:official",
+    "beforeBuildCommand": "npm run build:sidecar:official"
+  },
+  "bundle": {
+    "targets": ["app"],
+    "macOS": {
+      "signingIdentity": "-"
+    }
+  }
+}

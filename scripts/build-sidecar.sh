@@ -5,20 +5,20 @@
 # machine. Bun bundles TypeScript/ESM natively, so no separate build step is
 # needed first.
 #
-# Takes one optional argument, the edition to build — "direct" (default,
-# GitHub / Developer ID build) or "official" (App-Store-safe build). Each
-# compiles a different entry file (see src/index.direct.ts /
-# src/index.official.ts) but produces the same "zhidang-server" sidecar name
-# either way, since tauri.conf.json / tauri.appstore.conf.json each only
+# Takes one optional argument, the edition to build — "login" (default,
+# GitHub / Developer ID build) or "key" (App-Store-safe build). Each
+# compiles a different entry file (see src/index.login.ts /
+# src/index.key.ts) but produces the same "zhidang-server" sidecar name
+# either way, since tauri.conf.json / tauri.key.conf.json each only
 # ever bundle one edition at a time.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-EDITION="${1:-direct}"
+EDITION="${1:-login}"
 case "$EDITION" in
-  direct) ENTRY="src/index.direct.ts" ;;
-  official) ENTRY="src/index.official.ts" ;;
-  *) echo "Unknown edition '$EDITION' (expected 'direct' or 'official')" >&2; exit 1 ;;
+  login) ENTRY="src/index.login.ts" ;;
+  key) ENTRY="src/index.key.ts" ;;
+  *) echo "Unknown edition '$EDITION' (expected 'login' or 'key')" >&2; exit 1 ;;
 esac
 
 if ! command -v bun >/dev/null 2>&1; then

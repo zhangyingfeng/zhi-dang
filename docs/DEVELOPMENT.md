@@ -26,48 +26,48 @@ npx tauri build
 
 正式发布前的完整验证步骤（真机测试、签名/Gatekeeper 检查、断点续传等自动化测不到的项目）见 [发布前检查清单](RELEASE_CHECKLIST.md)。
 
-## 两个 Edition：direct / official
+## 两个 Edition：login / key
 
-「知档」有两个可独立构建的版本（edition），共享同一份归档引擎、UI 骨架和版本号，只有"内容从哪来、怎么登录"不同：
+「知档」有两个可独立构建的版本（edition），共享同一份归档引擎、UI 骨架和版本号，区别是验证身份的方式——登录知乎账号，还是粘贴一个密钥：
 
-- **direct**（默认，GitHub / Developer ID 分发）：内嵌 Zhihu 登录窗口，复用登录会话直连知乎网页版接口。`npx tauri dev` / `npx tauri build` 不带任何参数就是这个版本——日常开发流程完全不变。
-- **official**（App Store 分发）：不含任何登录窗口或会话中继代码，改用知乎官方数据开放平台（[developer.zhihu.com](https://developer.zhihu.com)）的 Access Secret 鉴权，只有纯 HTTP 请求。构建方式：
+- **login**（默认，GitHub / Developer ID 分发）：内嵌 Zhihu 登录窗口，复用登录会话直连知乎网页版接口。`npx tauri dev` / `npx tauri build` 不带任何参数就是这个版本——日常开发流程完全不变。
+- **key**（App Store 分发）：不含任何登录窗口或会话中继代码，改用知乎官方数据开放平台（[developer.zhihu.com](https://developer.zhihu.com)）的 Access Secret 鉴权，只有纯 HTTP 请求。构建方式：
 
   ```bash
   npm run build:sidecar   # 同上一节：这个文件不存在的话 tauri dev/build 都会在编译期直接失败
-  npm run tauri:appstore        # 打包 .app（等价于 tauri build --config src-tauri/tauri.appstore.conf.json -f appstore）
-  npm run tauri:appstore:dev    # 本地跑起来调试
+  npm run tauri:key        # 打包 .app（等价于 tauri build --config src-tauri/tauri.key.conf.json -f key）
+  npm run tauri:key:dev    # 本地跑起来调试
   ```
 
-  Access Secret 在知乎开放平台个人中心（`https://developer.zhihu.com/profile`）生成，粘贴进应用即可，不需要等知乎审批 OAuth。official 版每天的"我的创作全文"配额有限（实名 100 次/天，未实名 10 次/天，一次一篇），配额用完时会停在当前进度、提示第二天继续——这是 `Progress.phase === "quota"`（`src/types.ts`）对应的状态，不是失败。
+  Access Secret 在知乎开放平台个人中心（`https://developer.zhihu.com/profile`）生成，粘贴进应用即可，不需要等知乎审批 OAuth。key 版每天的"我的创作全文"配额有限（实名 100 次/天，未实名 10 次/天，一次一篇），配额用完时会停在当前进度、提示第二天继续——这是 `Progress.phase === "quota"`（`src/types.ts`）对应的状态，不是失败。
 
-**Zhihu OAuth 已评估并明确放弃**，不是"以后再看"：知乎这套 OAuth 把 `app_key` 当传统机密客户端密钥用（换 token 时明文传输），文档完全没提 PKCE 或任何面向原生/开源客户端的处理方式。知档是开源桌面应用，`app_key` 一旦写进代码就等于公开——而唯一能绕开这个问题的办法（自建一个只做 token 中转的常驻服务器）又正好是知档一直刻意不背的运营责任。所以 Access Secret 不是过渡方案，是 official edition 唯一、长期的接入方式。
+**Zhihu OAuth 已评估并明确放弃**，不是"以后再看"：知乎这套 OAuth 把 `app_key` 当传统机密客户端密钥用（换 token 时明文传输），文档完全没提 PKCE 或任何面向原生/开源客户端的处理方式。知档是开源桌面应用，`app_key` 一旦写进代码就等于公开——而唯一能绕开这个问题的办法（自建一个只做 token 中转的常驻服务器）又正好是知档一直刻意不背的运营责任。所以 Access Secret 不是过渡方案，是 key edition 唯一、长期的接入方式。
 
 ### 两版功能上的区别
 
 不只是接口不同，用户实际能感觉到的差异：
 
-| | direct | official |
+| | login | key |
 |---|---|---|
-| 登录方式 | 内嵌 Zhihu 登录窗口，正常账号密码/扫码登录 | 粘贴在知乎开放平台个人中心生成的 Access Secret，按钮文案是"验证并登录"——点击时会先拿这个 Secret 试调一次配额接口，验证通过才真正保存、进入登录态，避免把明显无效的凭证放进钥匙串 |
+| 验证身份的方式 | 内嵌 Zhihu 登录窗口，正常账号密码/扫码登录 | 粘贴在知乎开放平台个人中心生成的 Access Secret，按钮文案是"验证并登录"——点击时会先拿这个 Secret 试调一次配额接口，验证通过才真正保存、进入登录态，避免把明显无效的凭证放进钥匙串 |
 | 每日次数限制 | 无 | 有：`创作能力`配额每天 100 次（未实名 10 次），一篇内容的全文对应一次；配额为 0 时"开始导出"按钮直接禁用，登录时若已经是 0 会额外弹提示，不用等点了才发现 |
 | 中途配额用完怎样 | 不会发生 | 停在当前进度，`export-report.json`/`index.json` 里已成功的项目保持不变（不会因为断在中间就被冲掉——这曾经是个真实 bug，见下方说明），第二天配额刷新后点"开始导出"自动从断点继续 |
 | 欢迎语 / 文件夹默认名 | 真实知乎昵称 / `url_token`，来自登录会话 | 官方接口不返回账号昵称（查过所有相关接口，确认是知乎故意不给，不是漏掉）——可以在登录前手动贴一次知乎主页链接，本地解析出 `url_token` 用于欢迎语和文件夹命名；不贴的话默认文件夹名是 `exports`，欢迎语退化成显示当日剩余配额 |
-| 精确重复检测（`task.duplicate`，见下方"重复检测"） | 有——列表接口本身就带全文，导出前能算哈希 | **没有**——官方列表接口只有摘要，要等真正 `fetchBody` 才有全文，而这一步受配额限制，不能为了去重就先把全部内容都拉一遍；开放平台版目前不产出 `duplicate` 标记 |
+| 精确重复检测（`task.duplicate`，见下方"重复检测"） | 有——列表接口本身就带全文，导出前能算哈希 | **没有**——官方列表接口只有摘要，要等真正 `fetchBody` 才有全文，而这一步受配额限制，不能为了去重就先把全部内容都拉一遍；key 版目前不产出 `duplicate` 标记 |
 | 配额说明 | 无对应概念 | 登录后的额度文字旁有"额度说明"链接，弹窗解释配额规则，附官方文档和用量统计入口 |
 | 能否上架 App Store | 不行（Guideline 5.2.2：未经知乎允许访问其网页服务） | 可以——访问方式是知乎官方授权的 |
 
 这个接缝具体落在哪：
 
-| 层 | direct | official | 共享 |
+| 层 | login | key | 共享 |
 |---|---|---|---|
-| 数据源 | `src/source/direct.ts`（`DirectContentSource`，包一层 `src/zhihu.ts` 的分页逻辑，`fetchBody` 是空操作） | `src/source/official.ts`（`OfficialApiContentSource`，`listAll` 走 `/api/v1/user/contents`，`fetchBody` 走 `/api/v1/user/content_detail`，配额耗尽抛 `QuotaExhaustedError`） | `src/source/types.ts` 的 `ContentSource` 接口 |
-| 后端入口 | `src/index.direct.ts`（挂 `/api/frontend-fetch-request`\|`result` relay 路由） | `src/index.official.ts`（挂 `/api/official/quota`） | `src/server.ts` 的 `createServer(opts)` |
-| 登录/凭证 | Tauri 登录窗口 + `zhihu_fetch` IPC 中继（`src-tauri/src/lib.rs` 的 `mod direct`） | `save_access_secret`/`has_access_secret`/`get_access_secret`/`clear_access_secret` 四个命令，读写 macOS 系统钥匙串（`src-tauri/src/lib.rs` 的 `mod appstore`，靠 `keyring` crate） | `resize_main_window`、菜单、about 面板等 |
-| Rust feature | `#[cfg(not(feature = "appstore"))]`（不是一个叫 `direct` 的正向 feature——Tauri CLI 的 `-f/--features` 只会累加、无法关掉默认 feature，所以两个 edition 的互斥关系表达成"是不是 appstore"，而不是两个正向 feature 互斥，避免两边命令混进同一个二进制） | `appstore`（`src-tauri/Cargo.toml`） | — |
+| 数据源 | `src/source/login.ts`（`LoginContentSource`，包一层 `src/zhihu.ts` 的分页逻辑，`fetchBody` 是空操作） | `src/source/key.ts`（`KeyContentSource`，`listAll` 走 `/api/v1/user/contents`，`fetchBody` 走 `/api/v1/user/content_detail`，配额耗尽抛 `QuotaExhaustedError`） | `src/source/types.ts` 的 `ContentSource` 接口 |
+| 后端入口 | `src/index.login.ts`（挂 `/api/frontend-fetch-request`\|`result` relay 路由） | `src/index.key.ts`（挂 `/api/key/quota`） | `src/server.ts` 的 `createServer(opts)` |
+| 登录/凭证 | Tauri 登录窗口 + `zhihu_fetch` IPC 中继（`src-tauri/src/lib.rs` 的 `mod login`） | `save_access_secret`/`has_access_secret`/`get_access_secret`/`clear_access_secret` 四个命令，读写 macOS 系统钥匙串（`src-tauri/src/lib.rs` 的 `mod key`，靠 `keyring` crate） | `resize_main_window`、菜单、about 面板等 |
+| Rust feature | `#[cfg(not(feature = "key"))]`（不是一个叫 `login` 的正向 feature——Tauri CLI 的 `-f/--features` 只会累加、无法关掉默认 feature，所以两个 edition 的互斥关系表达成"是不是 key"，而不是两个正向 feature 互斥，避免两边命令混进同一个二进制） | `key`（`src-tauri/Cargo.toml`） | — |
 | 前端 | `public/app.js` 启动时读 `/api/about` 的 `edition` 字段，运行时分支（登录按钮 vs. Access Secret 输入框），任务列表/进度条/暂停跳过等渲染代码完全不区分 edition | | |
 
-Apple Developer 账号相关的部分（Mac App Store 签名身份、App Sandbox entitlements、公证、App Store Connect 提交）不在这个仓库里，需要维护者用自己的 Apple 开发者账号手动配置；`src-tauri/tauri.appstore.conf.json` 目前只是一个可以继续填的壳。
+Apple Developer 账号相关的部分（Mac App Store 签名身份、App Sandbox entitlements、公证、App Store Connect 提交）不在这个仓库里，需要维护者用自己的 Apple 开发者账号手动配置；`src-tauri/tauri.key.conf.json` 目前只是一个可以继续填的壳。
 
 ## 构建与测试
 
@@ -121,7 +121,7 @@ exports/
 
 前端展示的不是单一进度条，而是一份任务列表——`GET /api/status` 返回的 `progress.tasks` 数组，每一项对应一个 `ExportTask`（`src/types.ts`）：状态（`pending`/`active`/`done`/`error`/`skipped`）、`images`/`write` 两个子任务各自的状态，以及可选的 `duplicate` 字段。
 
-**重复检测**：`src/server.ts` 在拿到完整列表后，对每一项正文做 `contentHash`（`src/util.ts`，先用 `normalizePlainText` 去标签、合并空白，再取 SHA-256）分组，哈希相同的项互相标记为 `duplicate`。这是精确匹配，不做任何相似度/语义判断，纯粹是给用户看的提示——本身不会跳过或合并任何内容。这一步依赖列表阶段就拿到全文——official edition 的列表接口只有摘要，`html` 要等 `fetchBody`（受配额限制）才有，所以这一步对 official edition 目前是静默跳过（每一项 `normalizePlainText("").length` 恒为 0，直接被 `MIN_DEDUP_TEXT_LENGTH` 过滤掉），不会产出任何 `duplicate` 标记，也不会报错。
+**重复检测**：`src/server.ts` 在拿到完整列表后，对每一项正文做 `contentHash`（`src/util.ts`，先用 `normalizePlainText` 去标签、合并空白，再取 SHA-256）分组，哈希相同的项互相标记为 `duplicate`。这是精确匹配，不做任何相似度/语义判断，纯粹是给用户看的提示——本身不会跳过或合并任何内容。这一步依赖列表阶段就拿到全文——key edition 的列表接口只有摘要，`html` 要等 `fetchBody`（受配额限制）才有，所以这一步对 key edition 目前是静默跳过（每一项 `normalizePlainText("").length` 恒为 0，直接被 `MIN_DEDUP_TEXT_LENGTH` 过滤掉），不会产出任何 `duplicate` 标记，也不会报错。
 
 **控制接口**：
 
@@ -151,21 +151,21 @@ exports/
 
 ## 已知限制
 
-以下针对 direct edition（见上一节）；official edition 使用知乎官方开放平台，不受"网页接口变化"和"验证码"这两条限制，但受官方每日配额约束。
+以下针对 login edition（见上一节）；key edition 使用知乎官方开放平台，不受"网页接口变化"和"验证码"这两条限制，但受官方每日配额约束。
 
-- 知乎没有为 direct edition 提供正式 API；网页接口字段或安全策略变化时可能需要更新。
+- 知乎没有为 login edition 提供正式 API；网页接口字段或安全策略变化时可能需要更新。
 - 已删除、仅自己可见或受平台限制的内容取决于当前账号实际可访问的数据。
 - 暂停/继续导出限于当前这次运行的进程内；退出应用后再打开，只能靠指向同一个输出目录来续传，不是真正的"后台持续下载"。
 - 首次大量导出可能触发正常的安全验证；项目不会尝试绕过验证。
 - 目前只在 macOS（Apple Silicon）上完整测试过；Windows、Linux 和 Intel Mac 尚未验证。
 - 尚未完成 Apple 开发者签名，首次打开需要在系统设置里手动允许一次。
 
-以下针对 official edition：
+以下针对 key edition：
 
 - 不产出精确重复检测的 `duplicate` 标记（原因见"导出任务列表与控制接口"一节的"重复检测"）。
 - 没有账号昵称——用户不手动填知乎主页地址的话，欢迎语和文件夹默认名都用不了真实身份，参见"两版功能上的区别"表。
 - 每天"创作能力"配额有限（100 次，未实名 10 次），大账号一次导出不完，需要跨天多次点击"开始导出"续传。
-- Mac App Store 相关的签名、entitlements、公证、提交流程尚未开始，`tauri:appstore` 目前只能本地打包验证。
+- Mac App Store 相关的签名、entitlements、公证、提交流程尚未开始，`tauri:key` 目前只能本地打包验证。
 
 ## 遇到问题
 

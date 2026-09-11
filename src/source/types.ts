@@ -1,9 +1,9 @@
 import type { ListingReport, ZhihuItem } from "../types.js";
 
 // The one seam between "where content comes from" and everything else
-// (Exporter, server.ts, the task list UI). DirectContentSource (direct.ts)
-// and OfficialApiContentSource (official.ts) are the two implementations —
-// see docs/DEVELOPMENT.md for which edition ships which one. Adding a third
+// (Exporter, server.ts, the task list UI). LoginContentSource (login.ts)
+// and KeyContentSource (key.ts) are the two implementations — see
+// docs/DEVELOPMENT.md for which edition ships which one. Adding a third
 // source later should only ever mean implementing this interface, never
 // touching Exporter or the export API route.
 export interface ContentSource {

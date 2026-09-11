@@ -19,19 +19,19 @@
 两版共用一个版本号、一个 tag、一个 Release，各自的 `.app`/`.dmg` 作为两个附件挂在同一个 Release 上——不要开两个 tag 或两个 Release。
 
 ```bash
-npm run build:sidecar:direct   && npx tauri build
-npm run build:sidecar:official && npm run tauri:appstore
+npm run build:sidecar:login && npx tauri build
+npm run build:sidecar:key   && npm run tauri:key
 ```
 
 两次 `tauri build` 产出的 `.dmg` 默认文件名相同（productName 里的中文字符会被去掉，只剩版本号和架构），必须手动改名再上传，否则后上传的会覆盖前一个。约定：
 
 ```bash
-mv src-tauri/target/release/bundle/dmg/*.dmg          zhidang-direct_<version>_aarch64.dmg
-mv src-tauri/target/appstore/release/bundle/dmg/*.dmg zhidang-official_<version>_aarch64.dmg
-gh release create vX.Y.Z zhidang-direct_*.dmg zhidang-official_*.dmg --title "vX.Y.Z" --notes-file <(sed -n '/## X.Y.Z/,/## /p' docs/CHANGELOG.md | sed '1d;$d')
+mv src-tauri/target/release/bundle/dmg/*.dmg     zhidang-login_<version>_aarch64.dmg
+mv src-tauri/target/key/release/bundle/dmg/*.dmg zhidang-key_<version>_aarch64.dmg
+gh release create vX.Y.Z zhidang-login_*.dmg zhidang-key_*.dmg --title "vX.Y.Z" --notes-file <(sed -n '/## X.Y.Z/,/## /p' docs/CHANGELOG.md | sed '1d;$d')
 ```
 
-`site/index.html` 的下载按钮靠文件名里有没有 `official` 来区分两个 `.dmg`——改名字时不要偏离这个约定，否则官网的自动识别会失效（退化成两个按钮都指向 `releases/latest`，不是报错，但用户体验变差）。
+`site/index.html` 的下载按钮靠文件名里有没有 `key` 来区分两个 `.dmg`——改名字时不要偏离这个约定，否则官网的自动识别会失效（退化成两个按钮都指向 `releases/latest`，不是报错，但用户体验变差）。
 
 ## 每次维护
 

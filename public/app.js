@@ -2,33 +2,33 @@ const $=id=>document.getElementById(id); const readJson=async r=>{const text=awa
 const invoke=window.__TAURI__.core.invoke;
 let urlToken=null;
 let accessSecret=null;
-// "direct" (default) or "official" — set once at startup from /api/about
+// "login" (default) or "key" — set once at startup from /api/about
 // and never changed after; everything below that branches on it is the
 // entire visible difference between the two editions (see
 // src/source/types.ts's ContentSource for the corresponding backend seam).
-let edition="direct";
+let edition="login";
 let lastOutputDir=null;
 let loggedIn=false;
 let busy=false;
-// Last known remaining "creator" quota for the official edition — null
+// Last known remaining "creator" quota for the key edition — null
 // means unknown (not yet checked, or the last check failed), 0 means today's
 // "我的创作全文" quota is confirmed exhausted. Kept up to date by every
-// checkOfficialQuota() call (login, refreshQuotaDisplay) and consulted by
+// checkKeyQuota() call (login, refreshQuotaDisplay) and consulted by
 // syncControls()/the status poll to keep "开始导出" disabled rather than
 // letting the user start a run that can only fail on the very first item.
-let officialQuotaRemaining=null;
-function officialQuotaExhausted(){ return edition==="official"&&officialQuotaRemaining===0; }
+let keyQuotaRemaining=null;
+function keyQuotaExhausted(){ return edition==="key"&&keyQuotaRemaining===0; }
 
-// The official edition has no API that returns the account holder's own
+// The key edition has no API that returns the account holder's own
 // name/url_token (checked every documented endpoint — none echo it back,
 // looks deliberate on Zhihu's side, not a gap). This is a user-supplied
 // substitute, not a fetched one: paste your own profile URL once, parsed
-// locally into the same url_token direct-connect already uses for the
+// locally into the same url_token the login edition already uses for the
 // welcome text and default folder name. It's not a secret, so it lives in
 // this WKWebView's own localStorage rather than the Keychain (Access Secret
 // storage, see save_access_secret/get_access_secret) — never sent anywhere,
 // never verified against Zhihu.
-const PROFILE_URL_STORAGE_KEY="zhidang-official-profile-url";
+const PROFILE_URL_STORAGE_KEY="zhidang-key-profile-url";
 function parseZhihuUrlToken(input){
   return /zhihu\.com\/people\/([^/?#]+)/i.exec((input||"").trim())?.[1]||null;
 }
@@ -201,41 +201,41 @@ function syncControls(){
   // status poll below independently governs "开始导出" the rest of the
   // time (once an export is running/just finished) so this call only needs
   // to win the case syncControls itself is called from: right after login.
-  $("export").disabled=disabled||officialQuotaExhausted();
+  $("export").disabled=disabled||keyQuotaExhausted();
   $("auth-btn").disabled=busy;
 }
 
 function setAuthUI(nextLoggedIn,name,detail){
   loggedIn=nextLoggedIn;
-  const isOfficial=edition==="official";
+  const isKey=edition==="key";
   const btn=$("auth-btn");
   // "保存" undersold what this click does — it validates the secret against
-  // Zhihu (checkOfficialQuota) before ever persisting it, so "验证并登录"
+  // Zhihu (checkKeyQuota) before ever persisting it, so "验证并登录"
   // names the actual effect instead of implying a plain settings save.
-  btn.textContent=loggedIn?"退出登录":isOfficial?"验证并登录":"开始登录";
+  btn.textContent=loggedIn?"退出登录":isKey?"验证并登录":"开始登录";
   btn.classList.toggle("secondary",loggedIn);
-  $("step-title").textContent=loggedIn?(name?`欢迎 ${name}，可以下载`:(isOfficial?"知乎开放平台已连接":"可以下载")):isOfficial?"配置知乎开放平台":"登录知乎导出";
-  if(loggedIn&&isOfficial){
+  $("step-title").textContent=loggedIn?(name?`欢迎 ${name}，可以下载`:(isKey?"Access Secret 已连接":"可以下载")):isKey?"配置 Access Secret":"登录知乎导出";
+  if(loggedIn&&isKey){
     // Access Secret auth has no equivalent of a display name (only Zhihu
     // OAuth exposes profile info, and this edition deliberately doesn't use
     // OAuth) — show today's remaining "创作能力" quota here instead, since
     // that's the one piece of real account state this auth mode actually
-    // has, via checkOfficialQuota/formatQuotaLine below. The "额度说明" link
+    // has, via checkKeyQuota/formatQuotaLine below. The "额度说明" link
     // only makes sense next to this line, so it's shown/hidden together.
     $("auth-status").hidden=false;
-    $("auth-status-text").textContent=detail||"知乎开放平台已连接";
+    $("auth-status-text").textContent=detail||"Access Secret 已连接";
     $("quota-help-btn").hidden=false;
   }else{
-    // Once logged in (direct edition) this line would just repeat the
+    // Once logged in (login edition) this line would just repeat the
     // footer's identical sentence ("所有内容...不会上传到任何地方") — hide
     // it instead of showing the same trust message twice and costing an
     // extra row.
     $("auth-status").hidden=loggedIn;
-    $("auth-status-text").textContent=isOfficial?"Access Secret 只保存在本机系统钥匙串，不会上传到任何地方":"本应用不会保存或上传用户名和密码";
+    $("auth-status-text").textContent=isKey?"Access Secret 只保存在本机系统钥匙串，不会上传到任何地方":"本应用不会保存或上传用户名和密码";
     $("quota-help-btn").hidden=true;
   }
-  $("secret-row").hidden=loggedIn||!isOfficial;
-  $("profile-row").hidden=loggedIn||!isOfficial;
+  $("secret-row").hidden=loggedIn||!isKey;
+  $("profile-row").hidden=loggedIn||!isKey;
   // Nothing about "保存位置"/"下载正文图片"/"开始导出" is meaningful before
   // there's an authenticated account to export *from* — shown only once
   // logged in, hidden again on logout, rather than just grayed out while
@@ -250,35 +250,35 @@ function setAuthUI(nextLoggedIn,name,detail){
 // it (a) requires real auth so a bad/expired secret fails exactly like it
 // would on export, and (b) is explicitly documented as not consuming any
 // daily quota, unlike actually trying to list or fetch content just to test.
-async function checkOfficialQuota(secret){
-  const res=await fetch(`/api/official/quota?accessSecret=${encodeURIComponent(secret)}`);
+async function checkKeyQuota(secret){
+  const res=await fetch(`/api/key/quota?accessSecret=${encodeURIComponent(secret)}`);
   const body=await readJson(res);
   if(!res.ok) throw new Error(body.error||"验证 Access Secret 失败");
   return body.quota;
 }
-// Also updates officialQuotaRemaining as a side effect — every call site
+// Also updates keyQuotaRemaining as a side effect — every call site
 // that wants the display text also wants "开始导出" gated on the same
 // number, so keeping them in the same function makes it impossible for one
 // to update without the other.
 function formatQuotaLine(quotaList){
   const creator=(quotaList||[]).find((q)=>q.apiId==="creator");
-  officialQuotaRemaining=creator?creator.remaining:null;
-  if(!creator) return "知乎开放平台已连接";
-  return `知乎开放平台已连接 · 今日创作能力额度剩余 ${creator.remaining}/${creator.total} 次`;
+  keyQuotaRemaining=creator?creator.remaining:null;
+  if(!creator) return "Access Secret 已连接";
+  return `Access Secret 已连接 · 今日创作能力额度剩余 ${creator.remaining}/${creator.total} 次`;
 }
 // Called right after login and again whenever an export run finishes —
 // those are the only moments the number can actually have changed, so this
 // deliberately isn't on the 1.2s status-poll timer (that would just be
 // hammering Zhihu's servers for a number nothing has updated).
 async function refreshQuotaDisplay(){
-  if(edition!=="official"||!loggedIn||!accessSecret) return;
-  try{ $("auth-status-text").textContent=formatQuotaLine(await checkOfficialQuota(accessSecret)); syncControls(); }catch{}
+  if(edition!=="key"||!loggedIn||!accessSecret) return;
+  try{ $("auth-status-text").textContent=formatQuotaLine(await checkKeyQuota(accessSecret)); syncControls(); }catch{}
 }
 
 // Relays knowledge-base fetches requested by the Node backend through the
 // authenticated login window, since only this (Tauri) side can reach it.
-// Only meaningful for the direct edition: the official edition's backend
-// (src/index.official.ts) calls Zhihu's open platform directly over plain
+// Only meaningful for the login edition: the key edition's backend
+// (src/index.key.ts) calls Zhihu's open platform directly over plain
 // HTTP and never queues anything here, so this loop is simply never started
 // for it (see the startup block below).
 async function relayFrontendFetches(){
@@ -297,12 +297,12 @@ async function relayFrontendFetches(){
 // On launch: find out which edition this build is (the one thing that
 // decides which of the two auth flows below applies), then silently check
 // whether that edition's credential is already in place from a previous run
-// — the login window's session for direct, the Keychain-stored Access
-// Secret for official — so the user only sees the auth step when they
+// — the login window's session for the login edition, the Keychain-stored
+// Access Secret for key — so the user only sees the auth step when they
 // actually need it.
 (async()=>{
   try{ const about=await fetch("/api/about").then(readJson); if(about.edition) edition=about.edition; }catch{}
-  if(edition==="official"){
+  if(edition==="key"){
     try{
       const configured=await invoke("has_access_secret");
       if(configured){
@@ -314,10 +314,10 @@ async function relayFrontendFetches(){
         // re-entering the secret, so a failed quota check here still leaves
         // the user logged in — just without the quota line filled in yet.
         let detail;
-        try{ detail=formatQuotaLine(await checkOfficialQuota(accessSecret)); }catch{}
+        try{ detail=formatQuotaLine(await checkKeyQuota(accessSecret)); }catch{}
         setAuthUI(true,urlToken,detail);
         resizeToContent();
-        if(officialQuotaExhausted()) showToast("今日创作能力额度已用完，请明天再继续导出。",true);
+        if(keyQuotaExhausted()) showToast("今日创作能力额度已用完，请明天再继续导出。",true);
         return;
       }
     }catch{}
@@ -342,7 +342,7 @@ async function relayFrontendFetches(){
 })();
 
 $("auth-btn").onclick=async()=>{
-  if(edition==="official"){
+  if(edition==="key"){
     if(loggedIn){
       $("auth-btn").disabled=true;
       try{ await invoke("clear_access_secret"); }catch(e){ showToast(e.message||String(e),true); }
@@ -369,7 +369,7 @@ $("auth-btn").onclick=async()=>{
     // secret should never get past this screen (it would otherwise only
     // surface as a confusing failure the first time an export runs).
     let quota;
-    try{ quota=await checkOfficialQuota(secret); }
+    try{ quota=await checkKeyQuota(secret); }
     catch(e){ showToast(e.message||String(e),true); $("auth-btn").disabled=false; return; }
     try{
       await invoke("save_access_secret",{secret});
@@ -383,7 +383,7 @@ $("auth-btn").onclick=async()=>{
       $("status-section").hidden=false;
       setAuthUI(true,urlToken,formatQuotaLine(quota));
       resizeToContent();
-      if(officialQuotaExhausted()) showToast("今日创作能力额度已用完，请明天再开始导出。",true);
+      if(keyQuotaExhausted()) showToast("今日创作能力额度已用完，请明天再开始导出。",true);
     }catch(e){
       showToast(e.message||String(e),true);
       $("auth-btn").disabled=false;
@@ -423,7 +423,7 @@ function openAbout(){
   $("about-overlay").hidden=false;
   fetch("/api/about").then(readJson).then(({version,edition:e})=>{
     $("about-version").textContent=version;
-    $("about-edition").textContent=e==="official"?"开放平台版":"直连版";
+    $("about-edition").textContent=e==="key"?"密钥版":"登录版";
   }).catch(()=>{});
 }
 function closeAbout(){ $("about-overlay").hidden=true; }
@@ -438,7 +438,7 @@ $("about-repo").onclick=()=>{
   invoke("plugin:opener|open_url",{url:"https://github.com/zhangyingfeng/zhi-dang"}).catch(e=>showToast(e.message||String(e),true));
 };
 
-// Only relevant to the official edition — "额度说明" next to the quota line
+// Only relevant to the key edition — "额度说明" next to the quota line
 // (hidden/shown by setAuthUI) opens this same overlay pattern as "关于".
 function openQuotaHelp(){ $("quota-overlay").hidden=false; }
 function closeQuotaHelp(){ $("quota-overlay").hidden=true; }
@@ -477,8 +477,8 @@ $("export").onclick=async()=>{
     if(lastOutputDir) invoke("plugin:opener|reveal_item_in_dir",{paths:[lastOutputDir]}).catch(e=>showToast(e.message||String(e),true));
     return;
   }
-  const credentialField=edition==="official"?"accessSecret":"urlToken";
-  if(edition==="official"){
+  const credentialField=edition==="key"?"accessSecret":"urlToken";
+  if(edition==="key"){
     if(!accessSecret){ try{ accessSecret=await invoke("get_access_secret"); }catch{} }
     if(!accessSecret){
       showToast("Access Secret 已丢失，请重新配置。",true);
@@ -502,7 +502,7 @@ $("export").onclick=async()=>{
   completedAtDir=null;
   clearTaskList();
   ensureNotificationPermission();
-  post("/api/export",{outputDir:$("dir").value,downloadImages:$("images").checked,delayMs:900,[credentialField]:edition==="official"?accessSecret:urlToken}).catch(e=>showToast(e.message,true));
+  post("/api/export",{outputDir:$("dir").value,downloadImages:$("images").checked,delayMs:900,[credentialField]:edition==="key"?accessSecret:urlToken}).catch(e=>showToast(e.message,true));
 };
 $("pause-btn").onclick=()=>{
   const btn=$("pause-btn"); const willPause=btn.textContent==="暂停";
@@ -529,7 +529,7 @@ setInterval(async()=>{try{
   $("message").textContent=p.message;
   $("count").textContent=p.total?`${p.current||0} / ${p.total}`:(p.current?String(p.current):"");
   $("bar").value=p.total?100*(p.current||0)/p.total:0;
-  // "quota" (see src/types.ts's Progress.phase) means the official edition
+  // "quota" (see src/types.ts's Progress.phase) means the key edition
   // stopped early — quota exhausted, not every item finished — but there's
   // still a real, partial, resumable archive at p.outputDir, so it's
   // rendered the same as "done" rather than as an error.
@@ -549,7 +549,7 @@ setInterval(async()=>{try{
       // item was exported or 166 items in, the user needs to actually see
       // why the run stopped short, not just infer it from a static message
       // line. A native modal blocks until acknowledged.
-      if(p.phase==="quota") invoke("plugin:dialog|message",{message:p.message,title:"知档 · 开放平台配额已用完",kind:"warning"}).catch(()=>{});
+      if(p.phase==="quota") invoke("plugin:dialog|message",{message:p.message,title:"知档 · 创作能力配额已用完",kind:"warning"}).catch(()=>{});
       completedAtDir=$("dir").value;
       refreshQuotaDisplay();
     }
@@ -559,8 +559,8 @@ setInterval(async()=>{try{
   $("export").textContent=justCompleted?"在访达中显示":busy?"导出中…":"开始导出";
   // "在访达中显示" (justCompleted) opens Finder, not a new export — quota
   // has no bearing on that action, so it's excluded from this check.
-  $("export").disabled=justCompleted?false:(busy||!loggedIn||officialQuotaExhausted());
-  $("export").title=(!justCompleted&&officialQuotaExhausted())?"今日创作能力额度已用完，请明天再继续导出":"";
+  $("export").disabled=justCompleted?false:(busy||!loggedIn||keyQuotaExhausted());
+  $("export").title=(!justCompleted&&keyQuotaExhausted())?"今日创作能力额度已用完，请明天再继续导出":"";
   // Pausing only makes sense once there's an actual export loop running
   // (listing itself can't be paused — it's a couple of quick paginated
   // fetches, not the long per-item work pause targets).

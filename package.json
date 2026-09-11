@@ -4,18 +4,18 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "tsx src/index.direct.ts",
-    "dev:official": "tsx src/index.official.ts",
+    "dev": "tsx src/index.login.ts",
+    "dev:key": "tsx src/index.key.ts",
     "build": "tsc -p tsconfig.json && cp -R public dist/public",
-    "start": "node dist/src/index.direct.js",
-    "start:official": "node dist/src/index.official.js",
+    "start": "node dist/src/index.login.js",
+    "start:key": "node dist/src/index.key.js",
     "test": "node scripts/check-dom-refs.mjs && tsx --test test/*.test.ts",
-    "build:sidecar": "./scripts/build-sidecar.sh direct",
-    "build:sidecar:direct": "./scripts/build-sidecar.sh direct",
-    "build:sidecar:official": "./scripts/build-sidecar.sh official",
+    "build:sidecar": "./scripts/build-sidecar.sh login",
+    "build:sidecar:login": "./scripts/build-sidecar.sh login",
+    "build:sidecar:key": "./scripts/build-sidecar.sh key",
     "tauri": "tauri",
-    "tauri:appstore": "tauri build --config src-tauri/tauri.appstore.conf.json -f appstore",
-    "tauri:appstore:dev": "tauri dev --config src-tauri/tauri.appstore.conf.json -f appstore"
+    "tauri:key": "tauri build --config src-tauri/tauri.key.conf.json -f key",
+    "tauri:key:dev": "tauri dev --config src-tauri/tauri.key.conf.json -f key"
   },
   "dependencies": {
     "@tauri-apps/plugin-dialog": "^2.7.2",

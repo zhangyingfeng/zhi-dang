@@ -1,19 +1,19 @@
-#[cfg(not(feature = "appstore"))]
+#[cfg(not(feature = "key"))]
 use std::collections::HashMap;
-#[cfg(not(feature = "appstore"))]
+#[cfg(not(feature = "key"))]
 use std::sync::atomic::{AtomicU64, Ordering};
-#[cfg(not(feature = "appstore"))]
+#[cfg(not(feature = "key"))]
 use std::sync::Mutex;
-#[cfg(not(feature = "appstore"))]
+#[cfg(not(feature = "key"))]
 use std::time::Duration;
 use tauri::menu::{Menu, MenuItemBuilder, MenuItemKind};
 use tauri::{Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
 use tauri_plugin_shell::ShellExt;
-#[cfg(not(feature = "appstore"))]
+#[cfg(not(feature = "key"))]
 use tokio::sync::oneshot;
 
 const APP_URL: &str = "http://127.0.0.1:4317";
-#[cfg(not(feature = "appstore"))]
+#[cfg(not(feature = "key"))]
 const ZHIHU_SIGNIN_URL: &str = "https://www.zhihu.com/signin";
 
 /// Creates the main window pointed at the local Express server. In `tauri dev`
@@ -37,9 +37,9 @@ fn create_main_window(app: &tauri::AppHandle) -> tauri::Result<()> {
 /// Creates the embedded Zhihu login window up front, hidden, so its page
 /// context is already live when the app checks for an existing session on
 /// startup (see `check_login_status`) — not just after the user clicks
-/// "开始登录". Direct edition only: the official edition never logs into
+/// "开始登录". Login edition only: the key edition never logs into
 /// Zhihu's normal web session at all (see save_access_secret below).
-#[cfg(not(feature = "appstore"))]
+#[cfg(not(feature = "key"))]
 fn create_login_window(app: &tauri::AppHandle) -> tauri::Result<()> {
   let url = ZHIHU_SIGNIN_URL.parse().expect("ZHIHU_SIGNIN_URL is a valid URL");
   WebviewWindowBuilder::new(app, "login", WebviewUrl::External(url))
@@ -111,9 +111,9 @@ fn spawn_backend_sidecar(app: &tauri::AppHandle) -> Result<(), Box<dyn std::erro
 
 /// Registers the menu (with the custom About item) and creates the main
 /// window — everything both editions' `run()` need identically. What
-/// happens beyond this (the login window for direct, nothing extra for
-/// appstore) is edition-specific and stays in each `run()` below, so the
-/// command surface each binary actually ships is visible in one place.
+/// happens beyond this (the login window for the login edition, nothing
+/// extra for key) is edition-specific and stays in each `run()` below, so
+/// the command surface each binary actually ships is visible in one place.
 fn setup_common(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
   let menu = build_menu_with_custom_about(app.handle())?;
   app.set_menu(menu)?;
@@ -139,11 +139,11 @@ fn setup_common(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> 
 }
 
 // ---------------------------------------------------------------------------
-// Direct edition: webview login window + page-context fetch relay. None of
-// this exists in an "appstore" build — see the appstore block further down.
+// Login edition: webview login window + page-context fetch relay. None of
+// this exists in a "key" build — see the key block further down.
 // ---------------------------------------------------------------------------
-#[cfg(not(feature = "appstore"))]
-mod direct {
+#[cfg(not(feature = "key"))]
+mod login {
   use super::*;
 
   #[derive(Default)]
@@ -366,18 +366,18 @@ mod direct {
     Ok(())
   }
 }
-#[cfg(not(feature = "appstore"))]
-use direct::*;
+#[cfg(not(feature = "key"))]
+use login::*;
 
 // ---------------------------------------------------------------------------
-// Appstore edition: no login window, no session relay — just an Access
+// Key edition: no login window, no session relay — just an Access
 // Secret (from developer.zhihu.com/profile) stored in the OS keychain and
 // handed to the Node sidecar once per export request. See
-// src/index.official.ts / src/source/official.ts for the other side of this.
+// src/index.key.ts / src/source/key.ts for the other side of this.
 // ---------------------------------------------------------------------------
-#[cfg(feature = "appstore")]
-mod appstore {
-  const KEYRING_SERVICE: &str = "dev.zhangyingfeng.zhidang.appstore";
+#[cfg(feature = "key")]
+mod key {
+  const KEYRING_SERVICE: &str = "dev.zhangyingfeng.zhidang.key";
   const KEYRING_ACCOUNT: &str = "access-secret";
 
   fn entry() -> Result<keyring::Entry, String> {
@@ -400,7 +400,7 @@ mod appstore {
 
   /// Returns the stored secret so the frontend can pass it, once, into an
   /// `/api/export` request body — the Node sidecar never persists it itself
-  /// (see src/index.official.ts).
+  /// (see src/index.key.ts).
   #[tauri::command]
   pub fn get_access_secret() -> Result<Option<String>, String> {
     match entry()?.get_password() {
@@ -419,10 +419,10 @@ mod appstore {
     }
   }
 }
-#[cfg(feature = "appstore")]
-use appstore::*;
+#[cfg(feature = "key")]
+use key::*;
 
-#[cfg(not(feature = "appstore"))]
+#[cfg(not(feature = "key"))]
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
   tauri::Builder::default()
@@ -451,7 +451,7 @@ pub fn run() {
     .expect("error while running tauri application");
 }
 
-#[cfg(feature = "appstore")]
+#[cfg(feature = "key")]
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
   tauri::Builder::default()

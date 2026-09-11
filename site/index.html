@@ -214,11 +214,11 @@
       <p class="lede">本地归档你的知乎回答和文章</p>
       <p class="sub">「知档」即知乎作者归档。一个安全、开源的内容导出工具，方便作者把知乎上自己的内容归档导出为 Markdown、JSON 和本地图片。</p>
       <div class="cta">
-        <a class="btn btn-primary" id="download-direct" href="https://github.com/zhangyingfeng/zhi-dang/releases/latest">
-          下载直连版 · macOS（Apple Silicon）
+        <a class="btn btn-primary" id="download-login" href="https://github.com/zhangyingfeng/zhi-dang/releases/latest">
+          下载登录版 · macOS（Apple Silicon）
         </a>
-        <a class="btn btn-ghost" id="download-official" href="https://github.com/zhangyingfeng/zhi-dang/releases/latest">
-          下载开放平台版
+        <a class="btn btn-ghost" id="download-key" href="https://github.com/zhangyingfeng/zhi-dang/releases/latest">
+          下载密钥版
         </a>
       </div>
       <p class="meta">
@@ -281,12 +281,12 @@
 
     <section id="editions">
       <h2>两个版本，选一个就够</h2>
-      <p class="section-intro">归档格式和隐私原则完全一致，区别只在内容怎么从知乎拿到手。拿不准就下载<strong>直连版</strong>——这是默认、经过更长时间验证的路径。</p>
+      <p class="section-intro">归档格式和隐私原则完全一致，区别只在验证身份的方式。拿不准就下载<strong>登录版</strong>——这是默认、经过更长时间验证的路径。</p>
 
       <div class="cmp-wrap">
         <table class="cmp">
           <thead>
-            <tr><th>&nbsp;</th><th>直连版</th><th>开放平台版</th></tr>
+            <tr><th>&nbsp;</th><th>登录版</th><th>密钥版</th></tr>
           </thead>
           <tbody>
             <tr><td>登录方式</td><td>内嵌知乎登录窗口，正常账号登录</td><td>粘贴知乎开放平台生成的 Access Secret，无需登录窗口</td></tr>
@@ -405,7 +405,7 @@
         </div>
         <div class="row">
           <span class="tag">已完成</span>
-          <p><strong>开放平台版</strong>：Access Secret 鉴权，不需要登录窗口，为将来上架 App Store 打下基础。1.2 已正式发布，两版本区别见上方。</p>
+          <p><strong>密钥版</strong>：Access Secret 鉴权，不需要登录窗口，为将来上架 App Store 打下基础。1.2 已正式发布，两版本区别见上方。</p>
         </div>
         <div class="row">
           <span class="tag">规划中</span>
@@ -413,7 +413,7 @@
         </div>
         <div class="row">
           <span class="tag">规划中</span>
-          <p><strong>提交 Mac App Store</strong>（开放平台版）：需要 App Sandbox 改造和 entitlements 配置。</p>
+          <p><strong>提交 Mac App Store</strong>（密钥版）：需要 App Sandbox 改造和 entitlements 配置。</p>
         </div>
         <div class="row">
           <span class="tag">规划中</span>
@@ -452,7 +452,7 @@
   // on any failure the static links above (both pointing at releases/latest)
   // are already a reasonable fallback. The two editions' .dmg files are
   // told apart by filename — see docs/MAINTENANCE.md's release steps for the
-  // exact naming convention (zhidang-direct_*.dmg / zhidang-official_*.dmg).
+  // exact naming convention (zhidang-login_*.dmg / zhidang-key_*.dmg).
   (function () {
     var REPO = "zhangyingfeng/zhi-dang";
     fetch("https://api.github.com/repos/" + REPO + "/releases/latest", {
@@ -464,13 +464,13 @@
           document.getElementById("version").textContent = "当前 " + rel.tag_name.replace(/^v/, "");
         }
         var assets = rel.assets || [];
-        var officialDmg = assets.find(function (a) { return /\.dmg$/i.test(a.name) && /official/i.test(a.name); });
-        var directDmg = assets.find(function (a) { return /\.dmg$/i.test(a.name) && !/official/i.test(a.name); });
-        if (directDmg && directDmg.browser_download_url) {
-          document.getElementById("download-direct").href = directDmg.browser_download_url;
+        var keyDmg = assets.find(function (a) { return /\.dmg$/i.test(a.name) && /key/i.test(a.name); });
+        var loginDmg = assets.find(function (a) { return /\.dmg$/i.test(a.name) && !/key/i.test(a.name); });
+        if (loginDmg && loginDmg.browser_download_url) {
+          document.getElementById("download-login").href = loginDmg.browser_download_url;
         }
-        if (officialDmg && officialDmg.browser_download_url) {
-          document.getElementById("download-official").href = officialDmg.browser_download_url;
+        if (keyDmg && keyDmg.browser_download_url) {
+          document.getElementById("download-key").href = keyDmg.browser_download_url;
         }
       })
       .catch(function () { /* keep static fallbacks */ });

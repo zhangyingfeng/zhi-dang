@@ -43,7 +43,11 @@ export type TaskEvent =
   | { type: "images-list"; id: string; urls: string[] }
   | { type: "image"; id: string; url: string; status: "active" | "done" | "error"; error?: string }
   | { type: "done"; id: string; status: "done" | "error" | "skipped"; error?: string };
-export interface Progress { phase: "idle"|"login"|"listing"|"exporting"|"done"|"error"; message: string; current?: number; total?: number; outputDir?: string; tasks?: ExportTask[]; paused?: boolean; }
+// "quota" is distinct from "done": the run stopped early because a
+// quota-limited source (see ContentSource/QuotaExhaustedError in
+// src/source/types.ts) hit its daily limit, not because every item finished
+// — outputDir still points at a real, resumable, partial archive.
+export interface Progress { phase: "idle"|"login"|"listing"|"exporting"|"done"|"quota"|"error"; message: string; current?: number; total?: number; outputDir?: string; tasks?: ExportTask[]; paused?: boolean; }
 // Shared, in-memory, run-scoped control surface: the /api/export/pause,
 // /api/export/resume, and /api/export/skip handlers in server.ts mutate
 // this while Exporter.export polls it, so a same-process pause/skip can

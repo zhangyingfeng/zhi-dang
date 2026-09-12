@@ -72,17 +72,15 @@
 
   /* hero */
   .hero{text-align:center;padding:72px 0 8px}
-  .hero .mark-lg{
-    width:76px;height:76px;border-radius:18px;display:block;margin:0 auto 22px;
-    box-shadow:var(--shadow);
-  }
   .hero h1{font-size:40px;line-height:1.15;margin:0 0 14px;letter-spacing:-.01em}
   .hero .lede{font-size:20px;color:var(--text);max-width:34ch;margin:0 auto 10px}
   .hero .sub{font-size:16px;color:var(--muted);max-width:52ch;margin:0 auto 28px}
+  .hero-icons{display:flex;gap:16px;justify-content:center;margin:0 auto 22px}
+  .hero-icon{width:64px;height:64px;border-radius:15px;display:block;box-shadow:var(--shadow)}
   .cta{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-bottom:14px}
   .btn{
-    display:inline-flex;align-items:center;gap:8px;
-    padding:11px 20px;border-radius:10px;font-size:15px;font-weight:600;
+    display:inline-flex;align-items:center;justify-content:center;gap:8px;
+    min-width:168px;padding:11px 20px;border-radius:10px;font-size:15px;font-weight:600;
     border:1px solid transparent;cursor:pointer;transition:filter .12s,background .12s;
   }
   .btn-primary{background:var(--brand);color:#fff}
@@ -210,13 +208,16 @@
 
   <div class="wrap">
     <div class="hero">
-      <img class="mark-lg" src="assets/app-icon.png" alt="知档图标">
       <h1>知档</h1>
       <p class="lede">本地归档你的知乎回答和文章</p>
       <p class="sub">「知档」即知乎作者归档。一个安全、开源的内容导出工具，方便作者把知乎上自己的内容归档导出为 Markdown、JSON 和本地图片。</p>
+      <div class="hero-icons">
+        <img class="hero-icon" src="assets/icon-login.png" alt="登录版图标">
+        <img class="hero-icon" src="assets/icon-key.png" alt="密钥版图标">
+      </div>
       <div class="cta">
         <a class="btn btn-primary" id="download-login" href="https://github.com/zhangyingfeng/zhi-dang/releases/latest">
-          下载登录版 · macOS（Apple Silicon）
+          下载登录版
         </a>
         <a class="btn btn-ghost" id="download-key" href="https://github.com/zhangyingfeng/zhi-dang/releases/latest">
           下载密钥版

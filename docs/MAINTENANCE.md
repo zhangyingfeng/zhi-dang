@@ -18,16 +18,15 @@
 
 两版共用一个版本号、一个 tag、一个 Release，各自的 `.app`/`.dmg` 作为两个附件挂在同一个 Release 上——不要开两个 tag 或两个 Release。
 
+两个 edition 的 `tauri build` 都输出到同一个 `src-tauri/target/release/bundle/`（`-f key`/`--config` 只切 Cargo feature 和 bundle 配置，不切 target 目录），产出的 `.dmg` 默认文件名也相同（productName 里的中文字符会被去掉，只剩版本号和架构）——所以必须**建完一个就立刻搬走**，不能等两个都建完再搬，否则第二次构建会直接覆盖第一次的产物：
+
 ```bash
 npm run build:sidecar:login && npx tauri build
-npm run build:sidecar:key   && npm run tauri:key
-```
+mv src-tauri/target/release/bundle/dmg/*.dmg zhidang-login_<version>_aarch64.dmg
 
-两次 `tauri build` 产出的 `.dmg` 默认文件名相同（productName 里的中文字符会被去掉，只剩版本号和架构），必须手动改名再上传，否则后上传的会覆盖前一个。约定：
+npm run build:sidecar:key && npm run tauri:key
+mv src-tauri/target/release/bundle/dmg/*.dmg zhidang-key_<version>_aarch64.dmg
 
-```bash
-mv src-tauri/target/release/bundle/dmg/*.dmg     zhidang-login_<version>_aarch64.dmg
-mv src-tauri/target/key/release/bundle/dmg/*.dmg zhidang-key_<version>_aarch64.dmg
 gh release create vX.Y.Z zhidang-login_*.dmg zhidang-key_*.dmg --title "vX.Y.Z" --notes-file <(sed -n '/## X.Y.Z/,/## /p' docs/CHANGELOG.md | sed '1d;$d')
 ```
 

@@ -35,7 +35,7 @@ npx tauri build
 
   ```bash
   npm run build:sidecar   # 同上一节：这个文件不存在的话 tauri dev/build 都会在编译期直接失败
-  npm run tauri:key        # 打包 .app（等价于 tauri build --config src-tauri/tauri.key.conf.json -f key）
+  npm run tauri:key        # 打包 .app/.dmg（等价于 tauri build --config src-tauri/tauri.key.conf.json -f key）
   npm run tauri:key:dev    # 本地跑起来调试
   ```
 

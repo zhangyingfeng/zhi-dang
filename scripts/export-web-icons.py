@@ -14,6 +14,15 @@ exactly what "网页上的图标为什么四周有空白区域" was pointing at)
 to the tight 824x824 artwork before downscaling for web use fixes that
 without touching the actual macOS-bound icon sets.
 
+Flat PNGs only, deliberately — no baked-in drop shadow. A CSS shadow was
+tried in the markdown docs (README.md / docs/DEVELOPMENT.md) first, but
+GitHub's markdown renderer strips `style` and `class` attributes from any
+HTML it renders (a security measure — see github/markup#245 and GitHub's
+DOMPurify-based sanitizer), so a shadow can only reach those pages by being
+part of the pixels. That was rejected in favor of keeping icon assets plain
+everywhere; site/index.html gets its floating effect entirely from CSS
+(.hero-icon, .edition-icon — see the --icon-shadow token) instead.
+
 Run after regenerating either master:
 
     python3 scripts/export-web-icons.py

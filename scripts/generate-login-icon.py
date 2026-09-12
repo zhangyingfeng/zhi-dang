@@ -1,21 +1,29 @@
 #!/usr/bin/env python3
 """Derives the login edition's app-icon source PNG from the shared master.
 
-Simple inverted-color scheme so the two editions' Dock icons are never
-confused when both are open at once: key edition keeps the original blue
-background / white "档" glyph (src-tauri/icons/, unchanged); login edition
-swaps that to a white background / blue glyph. Same shape (including the
-100px transparent margin + 185.4px corner radius from
-scripts/apply-apple-icon-spec.py), just the two colors traded places.
+Key edition keeps the original blue background / white "档" glyph
+(src-tauri/icons/, unchanged). Login edition's background is a soft diagonal
+gradient — white at the top-left corner to a light gray (225,225,225) at the
+bottom-right — with the same blue glyph as the key edition. Same shape
+(including the 100px transparent margin + 185.4px corner radius from
+scripts/apply-apple-icon-spec.py), just the background recolored.
 
-No hand-drawn border/stroke around the shape — that was tried (to give the
-white icon a visible boundary against light Dock/Finder chrome) and dropped:
-a thin ring rendered visibly unevenly between the flat edges and the rounded
-corners once macOS composited the real icon (its own dynamic drop shadow —
-offset 12px down per Apple's spec, so not even meant to be symmetric — mixed
-with the ring in ways that were hard to get right and not worth chasing
-further). The white icon relies on the same system-drawn shadow every other
-macOS icon gets for edge definition, same as the key edition's blue icon.
+The gradient (not flat white) exists specifically so the icon has *some*
+visible boundary against a plain white page background in contexts that
+can't get one any other way — README.md / docs/DEVELOPMENT.md, rendered by
+GitHub, which strips `style`/`class` from any HTML it renders (see
+export-web-icons.py's docstring), so neither a CSS box-shadow nor a CSS
+border can ever reach those pages. A flat-white icon on GitHub's white
+background has effectively zero edge definition there. Went through several
+rounds before landing here — a hand-drawn border/stroke (visible boundary via
+a gray ring baked into the shape) was tried first and dropped: eroding a
+circular arc with a square kernel doesn't shrink it evenly in every
+direction, and even after fixing that, the ring still read unevenly once
+macOS composited the real .app icon (see
+reference_macos_icon_autobox_gotcha and the border-removal commits). A
+tinted/gradient background sidesteps all of that — it's just a color choice,
+not a shape macOS's icon compositor or a screen's downscaling has any
+opinion about.
 
 Requires Pillow (`pip3 install pillow`). Run from anywhere; paths are
 resolved relative to this script:
@@ -42,10 +50,21 @@ OUT = REPO_ROOT / "assets" / "app-icon-login-source.png"
 # Sampled directly from app-icon-source.png: every opaque pixel there is a
 # blend of these two colors — flat fill, anti-aliased corner-mask edges, and
 # anti-aliased glyph edges alike — so re-deriving each pixel's blend ratio
-# and swapping which color it's anchored to recolors everything correctly,
-# not just a flat pixel swap.
+# tells us how much "background" vs. "glyph" a pixel is, regardless of what
+# color each one gets mapped to below.
 BLUE = (23, 105, 224)
 WHITE = (255, 255, 255)
+
+# The login background: a very soft top-to-bottom gradient (near-white to a
+# barely-darker near-white gray), not flat — see the docstring above for why.
+# Went through several rounds: a diagonal gray version (rejected), diagonal
+# and vertical white-to-light-blue at four strengths each (rejected —
+# "不好看"), vertical gray-to-gray at progressively lighter levels down to
+# this one. Deliberately about as subtle as this approach can go before it
+# stops giving any boundary at all against a white page — the user picked
+# this level explicitly after seeing that tradeoff.
+GRADIENT_START = (254, 254, 254)
+GRADIENT_END = (247, 247, 247)
 
 
 def main() -> None:
@@ -59,11 +78,16 @@ def main() -> None:
                 continue
             t = (r - BLUE[0]) / (WHITE[0] - BLUE[0])
             t = max(0.0, min(1.0, t))
-            # Original: t=0 -> BLUE (background), t=1 -> WHITE (glyph).
-            # Inverted: t=0 -> WHITE (background), t=1 -> BLUE (glyph).
-            nr = round(WHITE[0] + t * (BLUE[0] - WHITE[0]))
-            ng = round(WHITE[1] + t * (BLUE[1] - WHITE[1]))
-            nb = round(WHITE[2] + t * (BLUE[2] - WHITE[2]))
+            # t=0 -> BLUE in the master (background), t=1 -> WHITE (glyph).
+            # frac is this pixel's position top-to-bottom, used to pick this
+            # pixel's *background* color from the gradient; t then blends
+            # between that and BLUE (the glyph color), same role WHITE played
+            # before switching to a gradient.
+            frac = y / (h - 1)
+            bg = tuple(GRADIENT_START[i] + (GRADIENT_END[i] - GRADIENT_START[i]) * frac for i in range(3))
+            nr = round(bg[0] + t * (BLUE[0] - bg[0]))
+            ng = round(bg[1] + t * (BLUE[1] - bg[1]))
+            nb = round(bg[2] + t * (BLUE[2] - bg[2]))
             px[x, y] = (nr, ng, nb, a)
     im.save(OUT)
     print(f"wrote {OUT}")

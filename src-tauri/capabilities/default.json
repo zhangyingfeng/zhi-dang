@@ -6,7 +6,7 @@
     "main"
   ],
   "remote": {
-    "urls": ["http://127.0.0.1:4317/*"]
+    "urls": ["http://127.0.0.1:4317/*", "http://127.0.0.1:4318/*"]
   },
   "permissions": [
     "core:default",

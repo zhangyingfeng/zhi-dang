@@ -25,7 +25,7 @@ its exact background/glyph colors (see the BLUE/WHITE constants).
 """
 from pathlib import Path
 
-from PIL import Image, ImageChops, ImageFilter
+from PIL import Image, ImageDraw
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SRC = REPO_ROOT / "assets" / "app-icon-source.png"
@@ -43,46 +43,65 @@ BORDER_GRAY = (214, 214, 214)
 # Width in the 1024px source canvas. This has to survive being scaled down to
 # the small sizes the icon actually renders at (a 60px hero icon, a 32px Dock
 # icon) — 10px here looked fine at full size but became a hairline that
-# nearly disappeared after downscaling, especially along the rounded
-# corners (a square erosion kernel doesn't shrink a curved edge as evenly as
-# a straight one, so the ring reads thinner exactly at each corner's midpoint
-# even before scaling makes it worse). 26px stays clearly visible down to the
-# smallest size this icon ships at.
+# nearly disappeared after downscaling. 26px stays clearly visible down to
+# the smallest size this icon ships at.
 BORDER_PX = 26
+# Measured directly off app-icon-source.png (see the corner-radius probe in
+# git history if this ever needs re-deriving): the squircle's corner arc
+# meets the flat edge at ~179-180px from the true corner, on a 1024px canvas
+# that the shape fills edge-to-edge on all four flat sides.
+CORNER_RADIUS = 180
+SUPERSAMPLE = 4  # for anti-aliasing the inset rounded-rect mask below
 
 
 def add_border(im: Image.Image) -> Image.Image:
-    """Paints a thin BORDER_GRAY ring just inside the squircle's edge, in the
-    band between the full mask and an eroded copy of it (MinFilter on a
-    binarized alpha channel = erosion), so the white icon has a visible
-    boundary against a light Dock/menu-bar background.
+    """Paints a BORDER_GRAY ring of uniform width just inside the squircle's
+    edge, so the white icon has a visible boundary against a light Dock/menu
+    bar background.
 
-    The squircle's flat sides (top/bottom/left/right, away from the rounded
-    corners) touch the source canvas's edge exactly — there's no transparent
-    margin outside them within the image. MinFilter clamps to the edge pixel
-    for anything off-canvas, so without padding first it finds nothing to
-    erode against there and only the rounded corners would get a border.
-    Padding with real transparent pixels on all sides first, then cropping
-    back afterwards, gives erosion something to bite into everywhere."""
-    pad = BORDER_PX + 4
+    An earlier version built this by eroding a binarized alpha mask with
+    PIL's MinFilter (a square structuring element) and taking the band
+    between the original and eroded masks. That erodes a straight edge
+    correctly, but a *square* kernel doesn't shrink a *circular* arc by the
+    same perpendicular distance in every direction — it's exact along the
+    axes and effectively erodes ~41% further at each rounded corner's 45°
+    midpoint (Chebyshev vs. Euclidean distance). The corner's inner boundary
+    came out as a blocky, octagon-ish approximation of a circle instead of a
+    smooth concentric arc, and that jagged inner edge is what read as
+    "thinner"/softer at the corners once downscaled to real display sizes —
+    not an actual width difference.
+
+    This version sidesteps the geometry problem instead of compensating for
+    it: draw the *exact* inset rounded-rectangle a uniform border should have
+    (same corner style, radius reduced by BORDER_PX, margins of BORDER_PX on
+    every side) directly with ImageDraw, supersampled for a smooth edge, and
+    use that as a paste mask over a solid-gray copy of the icon's own alpha
+    shape. The ring's width is then geometrically exact and uniform on the
+    flat sides and around the curve alike."""
     w, h = im.size
-    padded = Image.new("RGBA", (w + 2 * pad, h + 2 * pad), (0, 0, 0, 0))
-    padded.paste(im, (pad, pad))
+    alpha = im.split()[3]
 
-    alpha = padded.split()[3]
-    mask = alpha.point(lambda a: 255 if a > 128 else 0)
-    eroded = mask.filter(ImageFilter.MinFilter(BORDER_PX * 2 + 1))
-    ring = ImageChops.subtract(mask, eroded)
+    # Every already-opaque pixel gets painted gray; alpha (including the
+    # smooth anti-aliased outer edge) comes along unchanged.
+    gray_layer = Image.new("RGBA", (w, h), (*BORDER_GRAY, 0))
+    gray_layer.putalpha(alpha)
 
-    px = padded.load()
-    ring_px = ring.load()
-    alpha_px = alpha.load()
-    for y in range(padded.height):
-        for x in range(padded.width):
-            if ring_px[x, y]:
-                px[x, y] = (*BORDER_GRAY, alpha_px[x, y])
+    # The inset rounded-rect that the icon's *interior* (white bg + glyph)
+    # should be clipped to — same shape, margined in by BORDER_PX on every
+    # side, corner radius reduced to match.
+    ss = SUPERSAMPLE
+    inner_radius = max(0, CORNER_RADIUS - BORDER_PX)
+    inner_mask = Image.new("L", (w * ss, h * ss), 0)
+    ImageDraw.Draw(inner_mask).rounded_rectangle(
+        [BORDER_PX * ss, BORDER_PX * ss, w * ss - BORDER_PX * ss, h * ss - BORDER_PX * ss],
+        radius=inner_radius * ss,
+        fill=255,
+    )
+    inner_mask = inner_mask.resize((w, h), Image.LANCZOS)
 
-    return padded.crop((pad, pad, pad + w, pad + h))
+    result = gray_layer.copy()
+    result.paste(im, (0, 0), inner_mask)
+    return result
 
 
 def main() -> None:

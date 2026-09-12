@@ -12,7 +12,15 @@ use tauri_plugin_shell::ShellExt;
 #[cfg(not(feature = "key"))]
 use tokio::sync::oneshot;
 
+// Different ports per edition (matching src/index.login.ts / src/index.key.ts's
+// listen() calls) so a login-edition app and a key-edition app can run at the
+// same time without one sidecar failing to bind and that app's window
+// silently ending up talking to the other app's already-running server —
+// which is exactly what happened when both hardcoded the same port.
+#[cfg(not(feature = "key"))]
 const APP_URL: &str = "http://127.0.0.1:4317";
+#[cfg(feature = "key")]
+const APP_URL: &str = "http://127.0.0.1:4318";
 #[cfg(not(feature = "key"))]
 const ZHIHU_SIGNIN_URL: &str = "https://www.zhihu.com/signin";
 

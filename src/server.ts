@@ -211,7 +211,12 @@ export function createServer(opts: ServerOptions) {
   return app;
 }
 
-export function listen(app: express.Express) {
-  const port = Number(process.env.PORT || 4317);
+// defaultPort differs per edition (see src/index.login.ts / src/index.key.ts)
+// so both editions' apps can run at the same time without one's sidecar
+// silently failing to bind and the other window ending up talking to the
+// first app's server instead of its own — see src-tauri/src/lib.rs's
+// per-edition APP_URL for the matching webview-side half of this.
+export function listen(app: express.Express, defaultPort: number) {
+  const port = Number(process.env.PORT || defaultPort);
   app.listen(port, "127.0.0.1", () => console.log(`知档已启动：http://127.0.0.1:${port}`));
 }

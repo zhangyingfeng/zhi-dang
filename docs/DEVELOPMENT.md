@@ -35,7 +35,7 @@ npx tauri build
 
   ```bash
   npm run build:sidecar   # 同上一节：这个文件不存在的话 tauri dev/build 都会在编译期直接失败
-  npm run tauri:key        # 打包 .app（等价于 tauri build --config src-tauri/tauri.key.conf.json -f key）
+  npm run tauri:key        # 打包 .app/.dmg（等价于 tauri build --config src-tauri/tauri.key.conf.json -f key）
   npm run tauri:key:dev    # 本地跑起来调试
   ```
 
@@ -49,13 +49,14 @@ npx tauri build
 
 | | login | key |
 |---|---|---|
+| App 图标 | <img src="../assets/icon-login.png" width="48" alt="登录版图标"> 白底蓝字 | <img src="../assets/icon-key.png" width="48" alt="密钥版图标"> 蓝底白字 |
 | 验证身份的方式 | 内嵌 Zhihu 登录窗口，正常账号密码/扫码登录 | 粘贴在知乎开放平台个人中心生成的 Access Secret，按钮文案是"验证并登录"——点击时会先拿这个 Secret 试调一次配额接口，验证通过才真正保存、进入登录态，避免把明显无效的凭证放进钥匙串 |
 | 每日次数限制 | 无 | 有：`创作能力`配额每天 100 次（未实名 10 次），一篇内容的全文对应一次；配额为 0 时"开始导出"按钮直接禁用，登录时若已经是 0 会额外弹提示，不用等点了才发现 |
 | 中途配额用完怎样 | 不会发生 | 停在当前进度，`export-report.json`/`index.json` 里已成功的项目保持不变（不会因为断在中间就被冲掉——这曾经是个真实 bug，见下方说明），第二天配额刷新后点"开始导出"自动从断点继续 |
 | 欢迎语 / 文件夹默认名 | 真实知乎昵称 / `url_token`，来自登录会话 | 官方接口不返回账号昵称（查过所有相关接口，确认是知乎故意不给，不是漏掉）——可以在登录前手动贴一次知乎主页链接，本地解析出 `url_token` 用于欢迎语和文件夹命名；不贴的话默认文件夹名是 `exports`，欢迎语退化成显示当日剩余配额 |
 | 精确重复检测（`task.duplicate`，见下方"重复检测"） | 有——列表接口本身就带全文，导出前能算哈希 | **没有**——官方列表接口只有摘要，要等真正 `fetchBody` 才有全文，而这一步受配额限制，不能为了去重就先把全部内容都拉一遍；key 版目前不产出 `duplicate` 标记 |
 | 配额说明 | 无对应概念 | 登录后的额度文字旁有"额度说明"链接，弹窗解释配额规则，附官方文档和用量统计入口 |
-| 能否上架 App Store | 不行（Guideline 5.2.2：未经知乎允许访问其网页服务） | 可以——访问方式是知乎官方授权的 |
+| 本地服务端口 | `4317` | `4318`——两个 edition 的 `.app` 可以同时打开，图标和端口都不会撞（图标生成见 `scripts/generate-login-icon.py`，从共享的 `assets/app-icon-source.png` 反色生成并加了描边；key 版沿用原图标不变） |
 
 这个接缝具体落在哪：
 
@@ -172,7 +173,7 @@ exports/
 先查看[故障排查手册](TROUBLESHOOTING.md)。其中包括：
 
 - 登录窗口无法打开或打开后关闭；
-- 旧进程占用 4317 端口；
+- 旧进程占用 4317（login）/ 4318（key）端口；
 - 源码已更新但仍在运行旧版本；
 - 安全验证页被返回而不是 JSON；
 - 接口总数与去重后数量不同；

@@ -165,6 +165,7 @@
   table.cmp tbody tr:last-child td{border-bottom:0}
   table.cmp tbody td:first-child{color:var(--text)}
   table.cmp tbody td:last-child{color:var(--ok);font-weight:600}
+  .edition-icon{width:20px;height:20px;border-radius:6px;vertical-align:-4px;margin-right:8px}
 
   /* roadmap */
   .road{display:grid;gap:12px}
@@ -286,7 +287,11 @@
       <div class="cmp-wrap">
         <table class="cmp">
           <thead>
-            <tr><th>&nbsp;</th><th>登录版</th><th>密钥版</th></tr>
+            <tr>
+              <th>&nbsp;</th>
+              <th><img class="edition-icon" src="assets/icon-login.png" alt="登录版图标">登录版</th>
+              <th><img class="edition-icon" src="assets/icon-key.png" alt="密钥版图标">密钥版</th>
+            </tr>
           </thead>
           <tbody>
             <tr><td>登录方式</td><td>内嵌知乎登录窗口，正常账号登录</td><td>粘贴知乎开放平台生成的 Access Secret，无需登录窗口</td></tr>

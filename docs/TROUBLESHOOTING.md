@@ -105,18 +105,18 @@ npx tauri dev
 
 打包环境下 `process.cwd()` 不可靠，sidecar 的资源路径依赖 `ZHIDANG_PUBLIC_DIR` 环境变量（由 Rust 端传入），导出目录的基准路径也从项目目录改成了 `~/Documents`。确认改动没有绕开这两个环境相关的判断（搜索 `ZHIDANG_PUBLIC_DIR` 和 `isPackaged`）。
 
-### 端口 4317 被占用
+### 端口 4317 / 4318 被占用
 
 ```text
 EADDRINUSE: address already in use 127.0.0.1:4317
 ```
 
 ```bash
-lsof -nP -iTCP:4317 -sTCP:LISTEN
+lsof -nP -iTCP:4317 -sTCP:LISTEN   # key edition 用 4318，同样查法
 kill <PID>
 ```
 
-不要同时运行多个 `tauri dev` / 打包好的 `.app` 实例。
+login edition 固定用 4317，key edition 固定用 4318（`src/index.login.ts`/`src/index.key.ts`，webview 侧对应 `src-tauri/src/lib.rs` 的 `APP_URL`），两个不同 edition 的实例可以同时跑；但不要同时运行**同一个** edition 的多个 `tauri dev` / 打包好的 `.app` 实例——第二个实例的 sidecar 会绑定端口失败，窗口却仍然会打开并悄悄连到第一个实例的服务器上，表现为"看起来正常但操作的其实是另一个进程"，不会报错提示端口冲突。
 
 ### 测试或构建失败
 

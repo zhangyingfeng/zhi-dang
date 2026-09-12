@@ -32,4 +32,6 @@ const app = createServer({
     });
   },
 });
-listen(app);
+// A different port than the login edition (4317) so both editions' apps can
+// run side by side for testing — see src/server.ts's listen() doc comment.
+listen(app, 4318);

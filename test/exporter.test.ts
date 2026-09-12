@@ -56,16 +56,30 @@ test("skipping just the images subtask still writes the item, without downloadin
 
 test("a manifest is left behind after every item, not just at the end (so an interrupted run is still resumable)",async()=>{
   const outputDir=await tmpDir(); const seenTotalsAtEachWrite:number[]=[];
-  // A real (if small) delayMs between items, so a short fixed wait after
-  // each "done" event is guaranteed to land strictly before the *next*
-  // item starts — otherwise a race between this check and the exporter's
-  // own next iteration could read a later item's state instead.
+  // export() fires the "done" event synchronously, *before* its own
+  // await persist() below has actually finished writing index.json — so a
+  // fixed-delay wait here is inherently racy under CI's less predictable
+  // I/O scheduling (this flaked in CI: saw [1,1,2] instead of [1,2,3],
+  // each read lagging one item behind because persist() for the just-
+  // finished item hadn't landed on disk yet). Poll instead of guessing a
+  // delay that's "surely" long enough: each "done" event knows which
+  // item number it corresponds to, so wait until index.json actually
+  // reports that count (bounded by a generous timeout, not a fixed sleep).
   const control=freshControl();
+  let expectedCount=0;
   const onEvent=async(e:TaskEvent)=>{
     if(e.type!=="done") return;
-    await new Promise(r=>setTimeout(r,15));
-    try{ seenTotalsAtEachWrite.push(JSON.parse(await readFile(path.join(outputDir,"index.json"),"utf8")).summary.succeeded); }
-    catch{ seenTotalsAtEachWrite.push(-1); }
+    expectedCount++;
+    const target=expectedCount;
+    const deadline=Date.now()+2000;
+    let count=-1;
+    while(Date.now()<deadline){
+      try{ count=JSON.parse(await readFile(path.join(outputDir,"index.json"),"utf8")).summary.succeeded; }
+      catch{ count=-1; }
+      if(count>=target) break;
+      await new Promise(r=>setTimeout(r,5));
+    }
+    seenTotalsAtEachWrite.push(count);
   };
   await new Exporter().export([item("1"),item("2"),item("3")],[],{outputDir,downloadImages:false,delayMs:80},identitySource,e=>{ void onEvent(e); },control);
   await new Promise(r=>setTimeout(r,30));

@@ -47,9 +47,8 @@ npx tauri build
 
 不只是接口不同，用户实际能感觉到的差异：
 
-| | login | key |
+| | <img src="../assets/icon-login.png" width="32" alt="登录版图标"><br>login（白底蓝字） | <img src="../assets/icon-key.png" width="32" alt="密钥版图标"><br>key（蓝底白字） |
 |---|---|---|
-| App 图标 | <img src="../assets/icon-login.png" width="48" alt="登录版图标"> 白底蓝字 | <img src="../assets/icon-key.png" width="48" alt="密钥版图标"> 蓝底白字 |
 | 验证身份的方式 | 内嵌 Zhihu 登录窗口，正常账号密码/扫码登录 | 粘贴在知乎开放平台个人中心生成的 Access Secret，按钮文案是"验证并登录"——点击时会先拿这个 Secret 试调一次配额接口，验证通过才真正保存、进入登录态，避免把明显无效的凭证放进钥匙串 |
 | 每日次数限制 | 无 | 有：`创作能力`配额每天 100 次（未实名 10 次），一篇内容的全文对应一次；配额为 0 时"开始导出"按钮直接禁用，登录时若已经是 0 会额外弹提示，不用等点了才发现 |
 | 中途配额用完怎样 | 不会发生 | 停在当前进度，`export-report.json`/`index.json` 里已成功的项目保持不变（不会因为断在中间就被冲掉——这曾经是个真实 bug，见下方说明），第二天配额刷新后点"开始导出"自动从断点继续 |

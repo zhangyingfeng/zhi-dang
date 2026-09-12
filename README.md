@@ -1,5 +1,3 @@
-<p align="center"><img src="assets/app-icon.png" width="96" alt="知档图标"></p>
-
 # 知档
 
 「知档」，即知乎作者归档。一个安全、开源、本地优先的内容导出工具，帮助作者把知乎上自己的回答、文章和相关图片保存为 Markdown、JSON 和本地文件。

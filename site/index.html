@@ -25,6 +25,7 @@
     --border: rgba(20,22,25,.12);
     --border-soft: rgba(20,22,25,.08);
     --shadow: 0 1px 2px rgba(0,0,0,.04), 0 8px 30px rgba(0,0,0,.06);
+    --icon-shadow: 0 2px 4px rgba(20,22,25,.08), 0 8px 16px rgba(20,22,25,.14);
     --radius: 14px;
     --maxw: 880px;
     --ok: #1a8a4a;
@@ -42,6 +43,7 @@
       --border: rgba(255,255,255,.14);
       --border-soft: rgba(255,255,255,.08);
       --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 40px rgba(0,0,0,.35);
+      --icon-shadow: 0 2px 6px rgba(0,0,0,.35), 0 10px 20px rgba(0,0,0,.5);
       --ok: #43c17a;
     }
   }
@@ -75,18 +77,27 @@
   .hero h1{font-size:40px;line-height:1.15;margin:0 0 14px;letter-spacing:-.01em}
   .hero .lede{font-size:20px;color:var(--text);max-width:34ch;margin:0 auto 10px}
   .hero .sub{font-size:16px;color:var(--muted);max-width:52ch;margin:0 auto 28px}
-  .hero-icons{display:flex;gap:16px;justify-content:center;margin:0 auto 22px}
-  .hero-icon{width:64px;height:64px;border-radius:15px;display:block;box-shadow:var(--shadow)}
-  .cta{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-bottom:14px}
+  .cta{display:flex;gap:28px;justify-content:center;flex-wrap:wrap;margin-bottom:14px}
+  .cta-item{display:flex;flex-direction:column;align-items:center;gap:14px}
+  .hero-icon{width:60px;height:60px;border-radius:14px;display:block;box-shadow:var(--icon-shadow)}
   .btn{
     display:inline-flex;align-items:center;justify-content:center;gap:8px;
     min-width:168px;padding:11px 20px;border-radius:10px;font-size:15px;font-weight:600;
     border:1px solid transparent;cursor:pointer;transition:filter .12s,background .12s;
   }
-  .btn-primary{background:var(--brand);color:#fff}
-  .btn-primary:hover{filter:brightness(1.08);text-decoration:none}
-  .btn-ghost{background:var(--surface);color:var(--text);border-color:var(--border)}
-  .btn-ghost:hover{background:var(--surface-2);text-decoration:none}
+  /* Each button's colors mirror its own icon above it, not a generic
+     primary/secondary hierarchy: login's icon is a white square with blue
+     glyph, so its button is white-on-blue-text; key's icon is a blue square
+     with a white glyph, so its button is the inverse. */
+  .btn-login{background:#fff;color:var(--brand);border-color:var(--border)}
+  /* Fixed, not var(--surface-2): this button's white fill is deliberately
+     the same in both themes (matching its always-white icon above it), so
+     its hover tint has to be fixed too — --surface-2 is dark in dark mode,
+     which flipped the button from bright white to near-black on hover
+     instead of a subtle highlight. */
+  .btn-login:hover{background:#eef0f2;text-decoration:none}
+  .btn-key{background:var(--brand);color:#fff}
+  .btn-key:hover{filter:brightness(1.08);text-decoration:none}
   .hero .meta{font-size:13px;color:var(--faint)}
   .hero .meta a{color:var(--faint);text-decoration:underline}
 
@@ -162,7 +173,10 @@
   table.cmp tbody td{border-bottom:1px solid var(--border-soft);color:var(--muted)}
   table.cmp tbody tr:last-child td{border-bottom:0}
   table.cmp tbody td:first-child{color:var(--text)}
-  table.cmp tbody td:last-child{color:var(--ok);font-weight:600}
+  /* Only the crawler-vs-知档 comparison highlights its last column green (the
+     "good" answer) — the two-editions table below reuses table.cmp for
+     layout but both columns are just neutral options, not good-vs-bad. */
+  table.cmp-safe tbody td:last-child{color:var(--ok);font-weight:600}
   .edition-icon{width:20px;height:20px;border-radius:6px;vertical-align:-4px;margin-right:8px}
 
   /* roadmap */
@@ -211,17 +225,19 @@
       <h1>知档</h1>
       <p class="lede">本地归档你的知乎回答和文章</p>
       <p class="sub">「知档」即知乎作者归档。一个安全、开源的内容导出工具，方便作者把知乎上自己的内容归档导出为 Markdown、JSON 和本地图片。</p>
-      <div class="hero-icons">
-        <img class="hero-icon" src="assets/icon-login.png" alt="登录版图标">
-        <img class="hero-icon" src="assets/icon-key.png" alt="密钥版图标">
-      </div>
       <div class="cta">
-        <a class="btn btn-primary" id="download-login" href="https://github.com/zhangyingfeng/zhi-dang/releases/latest">
-          下载登录版
-        </a>
-        <a class="btn btn-ghost" id="download-key" href="https://github.com/zhangyingfeng/zhi-dang/releases/latest">
-          下载密钥版
-        </a>
+        <div class="cta-item">
+          <img class="hero-icon" src="assets/icon-login.png?v=7" alt="登录版图标">
+          <a class="btn btn-login" id="download-login" href="https://github.com/zhangyingfeng/zhi-dang/releases/latest">
+            下载登录版
+          </a>
+        </div>
+        <div class="cta-item">
+          <img class="hero-icon" src="assets/icon-key.png?v=5" alt="密钥版图标">
+          <a class="btn btn-key" id="download-key" href="https://github.com/zhangyingfeng/zhi-dang/releases/latest">
+            下载密钥版
+          </a>
+        </div>
       </div>
       <p class="meta">
         拿不准选哪个？看下面<a href="#editions">两个版本的区别</a> ·
@@ -247,7 +263,7 @@
       <p class="section-intro">知档不抓取知乎，也不采集别人的内容——它只在你本人登录之后，把<strong>你自己</strong>账号下的回答和文章搬到<strong>你自己</strong>的电脑上。没有你的登录、没有你的操作，知档什么也拿不到。这是理解下面所有设计和边界的前提。拿大规模采集工具做对比，一眼就能看清楚：</p>
 
       <div class="cmp-wrap">
-        <table class="cmp">
+        <table class="cmp cmp-safe">
           <thead>
             <tr><th>问题</th><th>大规模采集工具</th><th>现在的知档</th></tr>
           </thead>
@@ -290,8 +306,8 @@
           <thead>
             <tr>
               <th>&nbsp;</th>
-              <th><img class="edition-icon" src="assets/icon-login.png" alt="登录版图标">登录版</th>
-              <th><img class="edition-icon" src="assets/icon-key.png" alt="密钥版图标">密钥版</th>
+              <th><img class="edition-icon" src="assets/icon-login.png?v=7" alt="登录版图标">登录版</th>
+              <th><img class="edition-icon" src="assets/icon-key.png?v=5" alt="密钥版图标">密钥版</th>
             </tr>
           </thead>
           <tbody>

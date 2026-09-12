@@ -4,10 +4,18 @@
 Simple inverted-color scheme so the two editions' Dock icons are never
 confused when both are open at once: key edition keeps the original blue
 background / white "档" glyph (src-tauri/icons/, unchanged); login edition
-swaps that to a white background / blue glyph. Same squircle mask, same
-glyph shape — just the two colors traded places. A thin light-gray stroke is
-added around the squircle's edge, since a plain white icon has no visible
-boundary against a light Dock/menu-bar background otherwise.
+swaps that to a white background / blue glyph. Same shape (including the
+100px transparent margin + 185.4px corner radius from
+scripts/apply-apple-icon-spec.py), just the two colors traded places.
+
+No hand-drawn border/stroke around the shape — that was tried (to give the
+white icon a visible boundary against light Dock/Finder chrome) and dropped:
+a thin ring rendered visibly unevenly between the flat edges and the rounded
+corners once macOS composited the real icon (its own dynamic drop shadow —
+offset 12px down per Apple's spec, so not even meant to be symmetric — mixed
+with the ring in ways that were hard to get right and not worth chasing
+further). The white icon relies on the same system-drawn shadow every other
+macOS icon gets for edge definition, same as the key edition's blue icon.
 
 Requires Pillow (`pip3 install pillow`). Run from anywhere; paths are
 resolved relative to this script:
@@ -25,7 +33,7 @@ its exact background/glyph colors (see the BLUE/WHITE constants).
 """
 from pathlib import Path
 
-from PIL import Image, ImageChops, ImageFilter
+from PIL import Image
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SRC = REPO_ROOT / "assets" / "app-icon-source.png"
@@ -38,43 +46,6 @@ OUT = REPO_ROOT / "assets" / "app-icon-login-source.png"
 # not just a flat pixel swap.
 BLUE = (23, 105, 224)
 WHITE = (255, 255, 255)
-
-BORDER_GRAY = (214, 214, 214)
-BORDER_PX = 10  # width in the 1024px source canvas — thin at any bundled size
-
-
-def add_border(im: Image.Image) -> Image.Image:
-    """Paints a thin BORDER_GRAY ring just inside the squircle's edge, in the
-    band between the full mask and an eroded copy of it (MinFilter on a
-    binarized alpha channel = erosion), so the white icon has a visible
-    boundary against a light Dock/menu-bar background.
-
-    The squircle's flat sides (top/bottom/left/right, away from the rounded
-    corners) touch the source canvas's edge exactly — there's no transparent
-    margin outside them within the image. MinFilter clamps to the edge pixel
-    for anything off-canvas, so without padding first it finds nothing to
-    erode against there and only the rounded corners would get a border.
-    Padding with real transparent pixels on all sides first, then cropping
-    back afterwards, gives erosion something to bite into everywhere."""
-    pad = BORDER_PX + 4
-    w, h = im.size
-    padded = Image.new("RGBA", (w + 2 * pad, h + 2 * pad), (0, 0, 0, 0))
-    padded.paste(im, (pad, pad))
-
-    alpha = padded.split()[3]
-    mask = alpha.point(lambda a: 255 if a > 128 else 0)
-    eroded = mask.filter(ImageFilter.MinFilter(BORDER_PX * 2 + 1))
-    ring = ImageChops.subtract(mask, eroded)
-
-    px = padded.load()
-    ring_px = ring.load()
-    alpha_px = alpha.load()
-    for y in range(padded.height):
-        for x in range(padded.width):
-            if ring_px[x, y]:
-                px[x, y] = (*BORDER_GRAY, alpha_px[x, y])
-
-    return padded.crop((pad, pad, pad + w, pad + h))
 
 
 def main() -> None:
@@ -94,7 +65,6 @@ def main() -> None:
             ng = round(WHITE[1] + t * (BLUE[1] - WHITE[1]))
             nb = round(WHITE[2] + t * (BLUE[2] - WHITE[2]))
             px[x, y] = (nr, ng, nb, a)
-    im = add_border(im)
     im.save(OUT)
     print(f"wrote {OUT}")
 

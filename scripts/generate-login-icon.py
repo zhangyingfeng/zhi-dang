@@ -40,7 +40,15 @@ BLUE = (23, 105, 224)
 WHITE = (255, 255, 255)
 
 BORDER_GRAY = (214, 214, 214)
-BORDER_PX = 10  # width in the 1024px source canvas — thin at any bundled size
+# Width in the 1024px source canvas. This has to survive being scaled down to
+# the small sizes the icon actually renders at (a 60px hero icon, a 32px Dock
+# icon) — 10px here looked fine at full size but became a hairline that
+# nearly disappeared after downscaling, especially along the rounded
+# corners (a square erosion kernel doesn't shrink a curved edge as evenly as
+# a straight one, so the ring reads thinner exactly at each corner's midpoint
+# even before scaling makes it worse). 26px stays clearly visible down to the
+# smallest size this icon ships at.
+BORDER_PX = 26
 
 
 def add_border(im: Image.Image) -> Image.Image:

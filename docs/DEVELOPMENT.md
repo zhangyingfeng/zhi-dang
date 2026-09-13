@@ -39,9 +39,7 @@ npx tauri build
   npm run tauri:key:dev    # 本地跑起来调试
   ```
 
-  Access Secret 在知乎开放平台个人中心（`https://developer.zhihu.com/profile`）生成，粘贴进应用即可，不需要等知乎审批 OAuth。key 版每天的"我的创作全文"配额有限（实名 100 次/天，未实名 10 次/天，一次一篇），配额用完时会停在当前进度、提示第二天继续——这是 `Progress.phase === "quota"`（`src/types.ts`）对应的状态，不是失败。
-
-**Zhihu OAuth 已评估并明确放弃**，不是"以后再看"：知乎这套 OAuth 把 `app_key` 当传统机密客户端密钥用（换 token 时明文传输），文档完全没提 PKCE 或任何面向原生/开源客户端的处理方式。知档是开源桌面应用，`app_key` 一旦写进代码就等于公开——而唯一能绕开这个问题的办法（自建一个只做 token 中转的常驻服务器）又正好是知档一直刻意不背的运营责任。所以 Access Secret 不是过渡方案，是 key edition 唯一、长期的接入方式。
+  Access Secret 在知乎开放平台个人中心（`https://developer.zhihu.com/profile`）生成，粘贴进应用即可。key 版每天的"我的创作全文"配额有限（实名 100 次/天，未实名 10 次/天，一次一篇），配额用完时会停在当前进度、提示第二天继续——这是 `Progress.phase === "quota"`（`src/types.ts`）对应的状态，不是失败。
 
 ### 两版功能上的区别
 
@@ -66,6 +64,16 @@ npx tauri build
 | 登录/凭证 | Tauri 登录窗口 + `zhihu_fetch` IPC 中继（`src-tauri/src/lib.rs` 的 `mod login`） | `save_access_secret`/`has_access_secret`/`get_access_secret`/`clear_access_secret` 四个命令，读写 macOS 系统钥匙串（`src-tauri/src/lib.rs` 的 `mod key`，靠 `keyring` crate） | `resize_main_window`、菜单、about 面板等 |
 | Rust feature | `#[cfg(not(feature = "key"))]`（不是一个叫 `login` 的正向 feature——Tauri CLI 的 `-f/--features` 只会累加、无法关掉默认 feature，所以两个 edition 的互斥关系表达成"是不是 key"，而不是两个正向 feature 互斥，避免两边命令混进同一个二进制） | `key`（`src-tauri/Cargo.toml`） | — |
 | 前端 | `public/app.js` 启动时读 `/api/about` 的 `edition` 字段，运行时分支（登录按钮 vs. Access Secret 输入框），任务列表/进度条/暂停跳过等渲染代码完全不区分 edition | | |
+
+### 改图标要同步的三个地方
+
+两个 edition 的图标源图（`assets/app-icon-source.png`、`assets/app-icon-login-source.png`）改了之后，下游有三处用法，各自的约束不一样，容易漏改：
+
+1. **macOS 应用图标**（`src-tauri/icons/`、`src-tauri/icons-login/`，靠 `npx tauri icon` 从源图生成）：必须遵守苹果官方模板的边距/圆角规格（`scripts/apply-apple-icon-spec.py`），不能随便调圆角曲率或去掉边距——见 `docs/BUGFIXES.md` 1.2.0 的两条教训（改圆角没配边距，被 macOS 自动套灰框；手绘描边在圆角处变细）。
+2. **网站**（`site/assets/icon-*.png`）：用 `scripts/export-web-icons.py` 从源图裁掉苹果模板的透明边距再导出，不然网页上会看到图标周围一圈空白；视觉强调（阴影等）走 CSS（`--icon-shadow`），不要烘焙进图片，否则会跟 CSS 阴影叠两层。
+3. **文档**（`assets/icon-*.png`，被 `README.md`/`docs/DEVELOPMENT.md` 引用）：跟网站共用同一份裁边图，但 GitHub 渲染 markdown 里的 HTML 会剥离 `style`/`class` 属性，CSS 阴影/边框在这里永远不会生效——要强调图标，只能靠把它放进表格的表头行（`<th>` 默认加粗），或者真的把效果烘焙进图片本身。
+
+改完源图后，三处都要重新跑一遍对应脚本，不能只生成其中一个就以为完事。网站引用图标的 `<img>` 记得把 `?v=N` 版本号加一，否则浏览器可能继续用缓存的旧图（尤其是本地反复测试同一个文件名时）。
 
 Apple Developer 账号相关的部分（Mac App Store 签名身份、App Sandbox entitlements、公证、App Store Connect 提交）不在这个仓库里，需要维护者用自己的 Apple 开发者账号手动配置；`src-tauri/tauri.key.conf.json` 目前只是一个可以继续填的壳。
 

@@ -32,7 +32,7 @@
       "debugApplicationIdSuffix": ".debug"
     },
     "macOS": {
-      "signingIdentity": "-"
+      "signingIdentity": "Developer ID Application: YingFeng Zhang (P38K63763C)"
     }
   }
 }

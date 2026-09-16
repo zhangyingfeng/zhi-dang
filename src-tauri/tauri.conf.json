@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "知档",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "identifier": "com.zhangyingfeng.zhidang",
   "build": {
     "frontendDist": "../public",
@@ -26,8 +26,12 @@
       "icons-login/icon.icns",
       "icons-login/icon.ico"
     ],
-    "resources": {"../public": "public"},
-    "externalBin": ["binaries/zhidang-server"],
+    "resources": {
+      "../public": "public"
+    },
+    "externalBin": [
+      "binaries/zhidang-server"
+    ],
     "android": {
       "debugApplicationIdSuffix": ".debug"
     },

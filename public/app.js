@@ -86,7 +86,13 @@ async function resizeToContent(){
   // bounds instead of the window growing to fit it.
   const measureContent=()=>{
     const bottoms=[document.querySelector("footer").getBoundingClientRect().bottom];
-    for(const card of document.querySelectorAll(".overlay:not([hidden]) .about-card")) bottoms.push(card.getBoundingClientRect().bottom);
+    // .about-card also has a CSS max-height+overflow-y safety net (in case
+    // this resize ever fails or lags), which means its own
+    // getBoundingClientRect().bottom is capped to whatever the window's
+    // CURRENT (possibly too-short) height already allows — measuring that
+    // would make the window never grow past its starting size. scrollHeight
+    // is the card's true, uncapped content height regardless of that cap.
+    for(const card of document.querySelectorAll(".overlay:not([hidden]) .about-card")) bottoms.push(card.getBoundingClientRect().top+card.scrollHeight);
     return Math.max(...bottoms);
   };
   const target=measureContent()+titlebarAllowance;
@@ -436,7 +442,7 @@ function openAbout(){
     const current=e==="key"?"密钥版":"登录版"; const other=e==="key"?"登录版":"密钥版";
     $("about-version").textContent=version;
     $("about-edition").textContent=current;
-    $("about-edition-desc").textContent=`当前使用的是${current}。另外还有${other}，如果想使用，请访问下方官网链接。`;
+    $("about-edition-desc").textContent=`当前${current} · 另有${other}，见上方网站`;
     resizeToContent();
   }).catch(()=>{});
 }

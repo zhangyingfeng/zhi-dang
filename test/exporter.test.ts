@@ -117,3 +117,40 @@ test("resuming a directory replays already-finished items without redoing them, 
   assert.deepEqual(finalIndex.items.map((r:ExportRecord)=>r.id).sort(),["1","2","3"]);
   assert.equal(finalIndex.summary.discovered,3);
 });
+
+// Mirrors the key edition's KeyContentSource: listAll returns items with no
+// html at all (metadata-only listing), and the real body only shows up once
+// fetchBody is called per item — the case server.ts's own upfront
+// duplicate-detection pass (over items[].html) can't do anything with,
+// since every item's normalized length is 0 at that point.
+const lazySource=(bodies:Record<string,string>):ContentSource=>({listAll:async()=>({items:[],reports:[]}),fetchBody:async(it)=>bodies[it.id]});
+
+test("a duplicate only knowable after fetchBody (metadata-only listing) is still flagged, not silently exported unflagged",async()=>{
+  const outputDir=await tmpDir(); const events:TaskEvent[]=[];
+  const source=lazySource({
+    "1":"<p>这是一段完全相同的正文内容，用来验证跨条目的哈希去重能不能生效。</p>",
+    "2":"<p>这一条内容完全不一样，不应该被标记成重复。</p>",
+    "3":"<p>这是一段完全相同的正文内容，用来验证跨条目的哈希去重能不能生效。</p>",
+  });
+  await new Exporter().export([item("1"),item("2"),item("3")],[],{outputDir,downloadImages:false,delayMs:0},source,e=>events.push(e),freshControl());
+  const dupEvents=events.filter(e=>e.type==="duplicate") as Extract<TaskEvent,{type:"duplicate"}>[];
+  // Item "2" (unique body) must never be flagged.
+  assert.ok(!dupEvents.some(e=>e.id==="2"));
+  // Both "1" and "3" must end up flagged, including "1" — discovered only
+  // once "3" is fetched, well after "1" already finished — confirming the
+  // backfill onto an already-"done" task actually fires.
+  const flaggedIds=new Set(dupEvents.map(e=>e.id));
+  assert.deepEqual([...flaggedIds].sort(),["1","3"]);
+  for(const e of dupEvents){ assert.equal(e.info.groupSize,2); }
+  // Both copies are still written — this is a read-only hint, not an
+  // automatic skip.
+  const finalIndex=JSON.parse(await readFile(path.join(outputDir,"index.json"),"utf8"));
+  assert.deepEqual(finalIndex.items.map((r:ExportRecord)=>r.id).sort(),["1","2","3"]);
+});
+
+test("bodies too short for reliable comparison are never flagged as duplicates",async()=>{
+  const outputDir=await tmpDir(); const events:TaskEvent[]=[];
+  const source=lazySource({"1":"<p>短</p>","2":"<p>短</p>"});
+  await new Exporter().export([item("1"),item("2")],[],{outputDir,downloadImages:false,delayMs:0},source,e=>events.push(e),freshControl());
+  assert.ok(!events.some(e=>e.type==="duplicate"));
+});

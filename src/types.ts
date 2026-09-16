@@ -42,7 +42,16 @@ export type TaskEvent =
   | { type: "subtask"; id: string; key: SubTask["key"]; status: "active" | "done" | "error" | "skipped" }
   | { type: "images-list"; id: string; urls: string[] }
   | { type: "image"; id: string; url: string; status: "active" | "done" | "error"; error?: string }
-  | { type: "done"; id: string; status: "done" | "error" | "skipped"; error?: string };
+  | { type: "done"; id: string; status: "done" | "error" | "skipped"; error?: string }
+  // Emitted once a source whose listing is metadata-only (see
+  // ContentSource.fetchBody) has actually fetched enough items' bodies
+  // during export to discover a content-hash match — the login source's
+  // upfront pass in server.ts already knows this before export starts, but
+  // a per-item-fetch source (the key edition) can't know until each body
+  // has actually been retrieved. Carries the full, current DuplicateInfo so
+  // the caller can just overwrite; may fire for an id whose task already
+  // finished, backfilling the flag onto it after the fact.
+  | { type: "duplicate"; id: string; info: DuplicateInfo };
 // "quota" is distinct from "done": the run stopped early because a
 // quota-limited source (see ContentSource/QuotaExhaustedError in
 // src/source/types.ts) hit its daily limit, not because every item finished

@@ -2,8 +2,8 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import path from "node:path";
 import TurndownService from "turndown";
-import type { ExportControl, ExportOptions, ExportRecord, ListingReport, TaskEvent, ZhihuItem } from "./types.js";
-import { isoDate, safeName, sleep, writeFileAtomic, writeJson } from "./util.js";
+import type { DuplicateInfo, ExportControl, ExportOptions, ExportRecord, ListingReport, TaskEvent, ZhihuItem } from "./types.js";
+import { MIN_DEDUP_TEXT_LENGTH, contentHash, isoDate, normalizePlainText, safeName, sleep, writeFileAtomic, writeJson } from "./util.js";
 import { downloadImage } from "./zhihu.js";
 import { QuotaExhaustedError, type ContentSource } from "./source/types.js";
 
@@ -19,6 +19,28 @@ export class Exporter {
   async export(items:ZhihuItem[],listingReports:ListingReport[],opts:ExportOptions,source:ContentSource,onEvent:(e:TaskEvent)=>void,control:ExportControl={paused:false,skippedItemIds:new Set(),skipImagesItemIds:new Set()}){
     this.imageCache.clear(); await mkdir(opts.outputDir,{recursive:true});
     const records:ExportRecord[]=[]; const imageFailures:ImageFailure[]=[]; const itemFailures:ItemFailure[]=[]; const skippedItems:SkippedItem[]=[];
+    // Backstop for sources whose listing is metadata-only (see
+    // ContentSource.fetchBody) — server.ts's own upfront pass over
+    // already-known bodies is a no-op for those (nothing to hash yet), so
+    // duplicates among them would otherwise never surface at all. Keyed by
+    // content hash, populated as each item's body is actually fetched here;
+    // harmless (just redundant) for a source that already provides full
+    // bodies at listing time, since it recomputes the same hashes
+    // server.ts's pass already found.
+    const hashGroups=new Map<string,{id:string;title:string}[]>();
+    const noteContentHash=(item:ZhihuItem,html:string)=>{
+      if(normalizePlainText(html).length<MIN_DEDUP_TEXT_LENGTH) return;
+      const hash=contentHash(html);
+      const group=hashGroups.get(hash);
+      const entry={id:item.id,title:item.title};
+      if(!group){ hashGroups.set(hash,[entry]); return; }
+      group.push(entry);
+      if(group.length<2) return;
+      for(const member of group){
+        const info:DuplicateInfo={groupSize:group.length,otherTitles:group.filter(g=>g.id!==member.id).map(g=>g.title)};
+        onEvent({type:"duplicate",id:member.id,info});
+      }
+    };
     // Written after every item (not just once at the end) so an interrupted
     // run — force-quit, crash — still leaves a manifest behind. That's what
     // makes resume possible at all: assertSafeOutputDir trusts this file's
@@ -59,6 +81,7 @@ export class Exporter {
         itemFailures.push({itemId:item.id,kind:item.kind,title:item.title,error:message}); onEvent({type:"done",id:item.id,status:"error",error:message});
         await persist(); await sleep(opts.delayMs); continue;
       }
+      noteContentHash(item,html);
       onEvent({type:"start",id:item.id});
       try{
         const folder=path.join(opts.outputDir,item.kind==="answer"?"answers":"articles"); await mkdir(folder,{recursive:true}); let cover:string|null=item.coverUrl;

@@ -38,6 +38,10 @@ export async function assertSafeOutputDir(outputDir:string,exactProtected:string
 // from different Zhihu API shapes) still normalize to the same string.
 export function normalizePlainText(html:string){ return html.replace(/<[^>]+>/g," ").replace(/&nbsp;/gi," ").replace(/\s+/g," ").trim(); }
 // Used to flag exact-content duplicates in the export task list (see
-// src/server.ts) — deliberately just a hash equality check, not any kind of
-// similarity/fuzzy matching, so it needs no model or tunable threshold.
+// src/server.ts and Exporter.export in exporter.ts) — deliberately just a
+// hash equality check, not any kind of similarity/fuzzy matching, so it
+// needs no model or tunable threshold.
 export function contentHash(html:string){ return createHash("sha256").update(normalizePlainText(html)).digest("hex"); }
+// Very short bodies are excluded from duplicate detection so near-empty
+// items don't all cluster together as false positives.
+export const MIN_DEDUP_TEXT_LENGTH=20;

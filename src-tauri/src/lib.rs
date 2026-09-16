@@ -2,12 +2,12 @@
 use std::collections::HashMap;
 #[cfg(not(feature = "key"))]
 use std::sync::atomic::{AtomicU64, Ordering};
-#[cfg(not(feature = "key"))]
 use std::sync::Mutex;
 #[cfg(not(feature = "key"))]
 use std::time::Duration;
 use tauri::menu::{Menu, MenuItemBuilder, MenuItemKind};
-use tauri::{Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
+use tauri::{Emitter, Manager, RunEvent, WebviewUrl, WebviewWindowBuilder};
+use tauri_plugin_shell::process::CommandChild;
 use tauri_plugin_shell::ShellExt;
 #[cfg(not(feature = "key"))]
 use tokio::sync::oneshot;
@@ -99,6 +99,16 @@ fn resize_main_window(app: tauri::AppHandle, height: f64) -> Result<(), String> 
   Ok(())
 }
 
+/// Holds the sidecar's process handle so it can be killed on app exit (see
+/// `kill_backend_sidecar`). Without this, `CommandChild::kill` is never
+/// reachable and the sidecar — spawned via `tauri_plugin_shell`, which does
+/// NOT tie the child's lifetime to the parent app — outlives a normal quit,
+/// gets reparented to launchd, and keeps holding its port. A later launch's
+/// window can then silently end up talking to that stale process instead of
+/// its own fresh one.
+#[derive(Default)]
+struct SidecarProcess(Mutex<Option<CommandChild>>);
+
 fn spawn_backend_sidecar(app: &tauri::AppHandle) -> Result<(), Box<dyn std::error::Error>> {
   let resource_dir = app.path().resource_dir()?;
   let public_dir = resource_dir.join("public");
@@ -106,7 +116,10 @@ fn spawn_backend_sidecar(app: &tauri::AppHandle) -> Result<(), Box<dyn std::erro
     .shell()
     .sidecar("zhidang-server")?
     .env("ZHIDANG_PUBLIC_DIR", public_dir.to_string_lossy().to_string());
-  let (mut events, _child) = sidecar.spawn()?;
+  let (mut events, child) = sidecar.spawn()?;
+  if let Some(state) = app.try_state::<SidecarProcess>() {
+    *state.0.lock().unwrap() = Some(child);
+  }
   tauri::async_runtime::spawn(async move {
     while let Some(event) = events.recv().await {
       if let tauri_plugin_shell::process::CommandEvent::Stderr(line) = event {
@@ -117,12 +130,33 @@ fn spawn_backend_sidecar(app: &tauri::AppHandle) -> Result<(), Box<dyn std::erro
   Ok(())
 }
 
+/// Kills the sidecar spawned by `spawn_backend_sidecar`, if any is still
+/// running. Called from the `RunEvent::Exit` handler in both editions'
+/// `run()` so the server process doesn't outlive the app.
+///
+/// This hooks `Exit`, not the seemingly more obvious `ExitRequested`:
+/// verified empirically (adding `eprintln!` logging of every `RunEvent` and
+/// quitting a real built `.app` via the Dock/`osascript ... quit`) that a
+/// normal macOS quit never emits `ExitRequested` at all — the event loop
+/// goes straight from `MainEventsCleared` to `Exit`. `ExitRequested` is only
+/// emitted for some other exit paths (e.g. closing the last window when the
+/// app doesn't otherwise keep running), so relying on it here silently never
+/// fires on the most common exit path.
+fn kill_backend_sidecar(app: &tauri::AppHandle) {
+  if let Some(state) = app.try_state::<SidecarProcess>() {
+    if let Some(child) = state.0.lock().unwrap().take() {
+      let _ = child.kill();
+    }
+  }
+}
+
 /// Registers the menu (with the custom About item) and creates the main
 /// window — everything both editions' `run()` need identically. What
 /// happens beyond this (the login window for the login edition, nothing
 /// extra for key) is edition-specific and stays in each `run()` below, so
 /// the command surface each binary actually ships is visible in one place.
 fn setup_common(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
+  app.manage(SidecarProcess::default());
   let menu = build_menu_with_custom_about(app.handle())?;
   app.set_menu(menu)?;
   app.on_menu_event(|app, event| {
@@ -433,7 +467,7 @@ use key::*;
 #[cfg(not(feature = "key"))]
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-  tauri::Builder::default()
+  let app = tauri::Builder::default()
     .plugin(tauri_plugin_shell::init())
     .plugin(tauri_plugin_dialog::init())
     .plugin(tauri_plugin_opener::init())
@@ -455,14 +489,19 @@ pub fn run() {
       logout,
       check_login_status
     ])
-    .run(tauri::generate_context!())
-    .expect("error while running tauri application");
+    .build(tauri::generate_context!())
+    .expect("error while building tauri application");
+  app.run(|app_handle, event| {
+    if let RunEvent::Exit = event {
+      kill_backend_sidecar(app_handle);
+    }
+  });
 }
 
 #[cfg(feature = "key")]
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-  tauri::Builder::default()
+  let app = tauri::Builder::default()
     .plugin(tauri_plugin_shell::init())
     .plugin(tauri_plugin_dialog::init())
     .plugin(tauri_plugin_opener::init())
@@ -478,6 +517,11 @@ pub fn run() {
       get_access_secret,
       clear_access_secret
     ])
-    .run(tauri::generate_context!())
-    .expect("error while running tauri application");
+    .build(tauri::generate_context!())
+    .expect("error while building tauri application");
+  app.run(|app_handle, event| {
+    if let RunEvent::Exit = event {
+      kill_backend_sidecar(app_handle);
+    }
+  });
 }

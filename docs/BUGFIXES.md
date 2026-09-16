@@ -2,6 +2,34 @@
 
 本文记录已经确认的问题、根因和修复方式，便于维护者避免回归。
 
+## （未发布）：退出应用后，后端 sidecar 进程没有一起退出
+
+### 现象
+
+正常退出「知档」（Dock 图标右键退出，或 Cmd+Q）之后，内嵌的 Node 后端（`zhidang-server` sidecar）并没有跟着一起结束，而是变成孤儿进程（`ppid` 被系统重新指给 `launchd`），继续占用它绑定的端口（login 版 4317 / key 版 4318）。两个 edition 都受影响，因为都走同一份 `spawn_backend_sidecar`。
+
+实际影响：如果用户退出后重新打开应用（不管是同一个 edition 还是另一个），新实例的窗口有可能直接连上这个还在运行的旧 sidecar，而不是自己刚启动的那个——旧进程不会报错，只是悄悄提供上一次会话的状态/缓存数据，不会有任何提示。开发/测试时尤其容易被这个假象误导；对最终用户来说，意味着重新打开的应用可能在和一个上一次会话遗留下来的后端说话。
+
+### 根因
+
+`spawn_backend_sidecar`（`src-tauri/src/lib.rs`）通过 `tauri_plugin_shell` 启动 sidecar 时，把 `sidecar.spawn()` 返回的 `CommandChild` 直接绑定到 `_child` 丢弃掉了——没有任何地方持有这个句柄，也就没有任何地方能在退出时调用它的 `kill()`。`tauri_plugin_shell` 启动的子进程不会因为父进程（Tauri App）退出就自动被系统终止：它是完全独立的进程，需要显式 `kill()` 才会退出。
+
+另外验证时发现一个不直观的坑：最初尝试把 kill 挂在 `RunEvent::ExitRequested` 上（Tauri 官方示例里 sidecar 清理常用的钩子），但给每个 `RunEvent` 加日志、用真实签名+公证过的 `.app`、通过 Dock 退出和 `osascript ... to quit` 实测后发现，正常的 macOS 退出流程根本不会发出 `ExitRequested`——事件循环是从一串 `MainEventsCleared` 直接跳到 `Exit`，`ExitRequested` 从未触发。挂在 `ExitRequested` 上的清理逻辑在这个最常见的退出路径下会静默失效。
+
+### 修复
+
+新增一个受 Tauri 状态管理的 `SidecarProcess(Mutex<Option<CommandChild>>)`，`spawn_backend_sidecar` 把 `spawn()` 返回的 `CommandChild` 存进去而不是丢弃；`run()` 里把 `.run(context)` 拆成 `.build(context)` + `app.run(callback)`，在 callback 里匹配 `RunEvent::Exit`（不是 `ExitRequested`）调用 `kill_backend_sidecar`，取出并 `kill()` 这个句柄。两个 edition 的 `run()` 都改了。
+
+### 验证
+
+用 `npx tauri build --bundles app`（login）和 `npx tauri build --config src-tauri/tauri.key.conf.json -f key --bundles app`（key）各打出一个真实签名+公证的 `.app`，分别用 `scripts/verify-sidecar-exit.sh <path-to-.app>` 自动验证：启动、确认 sidecar 进程存在、通过 `osascript ... to quit` 正常退出、确认 sidecar 进程确实一起消失了——两个 edition 都通过。
+
+### 防回归要求
+
+- `tauri_plugin_shell` 起的 sidecar 子进程生命周期不跟父进程绑定，任何新增的 sidecar 必须显式持有它的 `CommandChild` 并在退出路径里 `kill()`，不能假设"父进程没了子进程也会没"；
+- 排查 Tauri 的退出/生命周期问题时不要凭对 `RunEvent` 变体名字的直觉猜测该挂哪个钩子（`ExitRequested` 听起来最像，但常见的 macOS 退出路径根本不发它）——给 `RunEvent` 加日志、在真机上用真实退出方式（Dock 退出/Cmd+Q/`osascript`，不只是关窗口）实测一遍事件顺序；
+- 发布前用 `scripts/verify-sidecar-exit.sh` 走一遍两个 edition，见 `docs/RELEASE_CHECKLIST.md`。
+
 ## 1.2.0：登录版图标圆角调"圆"之后，macOS 给整个图标套了一层灰框
 
 ### 现象

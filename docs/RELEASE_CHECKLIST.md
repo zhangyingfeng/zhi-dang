@@ -13,6 +13,7 @@
 - [ ] **login**：登录 → 导出 → 查看结果完整走一遍，全程用真机上的 `tauri dev` 或者打包后的 `.app`，不能只看浏览器预览（`AccentColor` 这类系统色、真实通知中心、Gatekeeper 都是浏览器测不出来的，见 `docs/BUGFIXES.md` 里已经吃过的亏）
 - [ ] **key**：用一个真实的 Access Secret（`developer.zhihu.com/profile` 生成）走一遍"验证并登录 → 导出 → 查看结果"，全程用 `npm run tauri:key:dev` 或打包后的 `.app`——这是唯一能验证"真的连得上知乎官方接口"的方式，自动化测试全部是 mock 过的
 - [ ] 两个 edition 分别退出登录：任务列表、状态卡片、保存位置都要恢复成未登录前的样子，且不能有任何报错弹出
+- [ ] 两个 edition 分别打包后，正常退出应用（Dock 右键退出 / Cmd+Q 均可），确认 `zhidang-server` sidecar 进程跟着一起退出，不会变成孤儿进程继续占用端口——`scripts/verify-sidecar-exit.sh <path-to-.app>` 可以自动跑这个检查；背景见 `docs/BUGFIXES.md`"退出应用后，后端 sidecar 进程没有一起退出"
 
 ## 涉及任务管理功能时（暂停/跳过/续传相关改动）
 

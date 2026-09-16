@@ -12,3 +12,4 @@ coverage/
 .DS_Store
 docs/capture/
 /release-staging/
+*.provisionprofile

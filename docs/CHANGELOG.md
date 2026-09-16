@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.0
+
+Same content as 1.2.1 (both editions sign with a real Apple Developer ID certificate and are notarized, replacing the ad-hoc signing used since 1.0.0 — see that entry below for the technical detail). Re-released as a MINOR version instead of a PATCH: shipping real Developer ID signing and notarization is a meaningful change to the installation/trust experience for every user, not just a fix, and warrants a version number that reflects that rather than reading as a patch-level tweak.
+
 ## 1.2.1
 
 Both editions now sign with a real Apple Developer ID certificate and are notarized, replacing the ad-hoc signing used since 1.0.0. `bundle.macOS.signingIdentity` in `tauri.conf.json` (login edition) and `tauri.key.conf.json` (key edition) both point at `Developer ID Application: YingFeng Zhang (P38K63763C)`; `tauri build` picks up notarization automatically once `APPLE_ID`/`APPLE_PASSWORD`/`APPLE_TEAM_ID` are set in the environment.

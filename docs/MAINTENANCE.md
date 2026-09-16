@@ -18,6 +18,14 @@
 
 两版共用一个版本号、一个 tag、一个 Release，各自的 `.app`/`.dmg` 作为两个附件挂在同一个 Release 上——不要开两个 tag 或两个 Release。
 
+两个 edition 都用真实 Developer ID 证书签名并自动公证（`tauri.conf.json`/`tauri.key.conf.json` 的 `signingIdentity` 已经是证书名字，不是 ad-hoc 的 `"-"`），构建前必须先设好这三个环境变量，否则会静默退回到跳过公证：
+
+```bash
+export APPLE_ID="Apple ID 邮箱"
+export APPLE_PASSWORD="App 专用密码（appleid.apple.com 生成，不是账号密码本身）"
+export APPLE_TEAM_ID="P38K63763C"
+```
+
 两个 edition 的 `tauri build` 都输出到同一个 `src-tauri/target/release/bundle/`（`-f key`/`--config` 只切 Cargo feature 和 bundle 配置，不切 target 目录），产出的 `.dmg` 默认文件名也相同（productName 里的中文字符会被去掉，只剩版本号和架构）——所以必须**建完一个就立刻搬走**，不能等两个都建完再搬，否则第二次构建会直接覆盖第一次的产物：
 
 ```bash

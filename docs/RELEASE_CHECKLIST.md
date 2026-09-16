@@ -37,8 +37,9 @@
   ```bash
   xattr -w com.apple.quarantine "0083;$(date +%s);Safari;" 知档.app
   ```
-  然后双击打开，确认走的是预期的"系统设置 → 隐私与安全性 → 仍要打开"两步流程，不是"已损坏，无法打开"（`docs/BUGFIXES.md` 的 preview.6 那次教训）
-- [ ] 两个 `.app` 分别 `codesign --verify --deep --strict` 通过，且 `codesign -dv` 显示的 `Sealed Resources` 不是 `none`
+  然后双击打开，确认能直接正常启动，不弹任何 Gatekeeper 提示——两个 edition 从 1.3 起都是真实 Developer ID 签名 + 公证，不再是"系统设置 → 隐私与安全性 → 仍要打开"这种需要手动绕过的流程；如果弹出提示或"已损坏，无法打开"（`docs/BUGFIXES.md` preview.6 那次教训），说明签名或公证出了问题，不能直接发布
+- [ ] 两个 `.app` 分别 `codesign --verify --deep --strict` 通过，`codesign -dv` 显示 `TeamIdentifier=P38K63763C`（不是 ad-hoc）且 `Sealed Resources` 不是 `none`
+- [ ] 两个 `.app` 分别 `spctl -a -vvv` 返回 `accepted` / `source=Notarized Developer ID`，`xcrun stapler validate` 成功——这两项专门验证公证是否真的通过，`codesign --verify` 本身测不出来
 - [ ] 两个 `.dmg` 按 `docs/MAINTENANCE.md`"两个 edition 一起发布"里的约定改好文件名（`zhidang-login_*`/`zhidang-key_*`）再上传——文件名不对会互相覆盖，网站的下载按钮也认不出来
 
 ## 涉及系统通知时

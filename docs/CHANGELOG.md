@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.2.1
+
+Both editions now sign with a real Apple Developer ID certificate and are notarized, replacing the ad-hoc signing used since 1.0.0. `bundle.macOS.signingIdentity` in `tauri.conf.json` (login edition) and `tauri.key.conf.json` (key edition) both point at `Developer ID Application: YingFeng Zhang (P38K63763C)`; `tauri build` picks up notarization automatically once `APPLE_ID`/`APPLE_PASSWORD`/`APPLE_TEAM_ID` are set in the environment.
+
+Downloading and opening either `.dmg` no longer triggers Gatekeeper's "unidentified developer" prompt — verified for both editions with `codesign --verify --deep --strict`, `spctl -a -vvv` (`accepted` / `source=Notarized Developer ID`), `xcrun stapler validate`, and a real quarantine-flag simulation of a browser download.
+
+No functional or export-format change.
+
 ## 1.2.0
 
 Adds a second, independently-buildable **key edition** alongside the existing **login edition** — same archive engine, UI shell, and version number, differing only in how the user's identity is verified. This is what makes an eventual App Store submission possible: the login edition replays an authenticated web session (blocked by Guideline 5.2.2), the key edition authenticates via a Zhihu-issued Access Secret against the official Data Open Platform instead.

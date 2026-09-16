@@ -75,7 +75,16 @@ npx tauri build
 
 改完源图后，三处都要重新跑一遍对应脚本，不能只生成其中一个就以为完事。网站引用图标的 `<img>` 记得把 `?v=N` 版本号加一，否则浏览器可能继续用缓存的旧图（尤其是本地反复测试同一个文件名时）。
 
-Apple Developer 账号相关的部分（Mac App Store 签名身份、App Sandbox entitlements、公证、App Store Connect 提交）不在这个仓库里，需要维护者用自己的 Apple 开发者账号手动配置；`src-tauri/tauri.key.conf.json` 目前只是一个可以继续填的壳。
+### 密钥版的 App Sandbox（ROADMAP.md 1.4）
+
+提交 Mac App Store 强制要求开 App Sandbox，密钥版用了两份不同的 entitlements 文件，不是一份：
+
+- `src-tauri/entitlements.key.plist`：主程序的真实权限——`app-sandbox`、`network.client`（访问知乎开放平台接口）、`network.server`（sidecar 自己的 `127.0.0.1:4318` 本地 HTTP 服务要监听端口，哪怕只是本机回环地址，沙盒也算作"网络访问"，需要这个权限，不是想当然可以省略）、`files.user-selected.read-write`（保存位置的读写）。
+- `src-tauri/entitlements.key.child.plist`：sidecar（`zhidang-server`）自己的，**只有** `app-sandbox` + `inherit` 两项。按苹果官方文档，子进程要继承父进程的沙盒，entitlements 里只能有这两项，多写别的（哪怕跟父进程一样）系统会直接判定成"这个子进程要自己单独起一个沙盒容器"，而一个裸编译出来的可执行文件（不是标准 `.app` 结构）撑不住这个独立初始化，会在 `libsecinit_appsandbox` 直接崩溃退出——这是真实测过、复现过的问题，不是文档抄来的猜测。
+
+Tauri 的 `bundle.macOS.entitlements` 配置只支持一份文件、统一套用给 bundle 里所有可执行文件，没法原生表达"主程序一份、sidecar 另一份"。所以正常的 `npm run tauri:key` 打包+公证流程对密钥版的沙盒版本不够用——sidecar 会被套上主程序的完整权限，触发上面那个崩溃。`scripts/build-key-sandboxed.sh` 是专门写的构建脚本：先用 `--bundles app` 只打包 `.app`（不带公证，因为这时候 sidecar 权限还是错的），手动把 sidecar 重新签成精简版 entitlements、重新封装整个 bundle，验证权限都对了之后才真正提交公证——保证公证凭证对应的是权限已经修好的版本，不是错误版本走了个过场。这个脚本目前只产出 `.app`，不产出 `.dmg`（App Store 用的是 `.pkg`，不是 `.dmg`，`.pkg` 那一步还没做，需要先申请 Mac App Distribution / Mac Installer Distribution 证书）。
+
+已经在真实沙盒里验证过：sidecar 能正常启动、绑定端口、响应本地 API 请求、发起真实的出站请求到知乎开放平台，系统日志里没有任何沙盒拒绝记录。剩下没做的是 App Store 特有的证书申请、打包成 `.pkg`、App Store Connect 建 App 记录和正式提交审核——这几步都需要维护者自己的 Apple 开发者账号操作。
 
 ## 构建与测试
 

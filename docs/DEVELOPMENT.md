@@ -82,9 +82,27 @@ npx tauri build
 - `src-tauri/entitlements.key.plist`：主程序的真实权限——`app-sandbox`、`network.client`（访问知乎开放平台接口）、`network.server`（sidecar 自己的 `127.0.0.1:4318` 本地 HTTP 服务要监听端口，哪怕只是本机回环地址，沙盒也算作"网络访问"，需要这个权限，不是想当然可以省略）、`files.user-selected.read-write`（保存位置的读写）。
 - `src-tauri/entitlements.key.child.plist`：sidecar（`zhidang-server`）自己的，**只有** `app-sandbox` + `inherit` 两项。按苹果官方文档，子进程要继承父进程的沙盒，entitlements 里只能有这两项，多写别的（哪怕跟父进程一样）系统会直接判定成"这个子进程要自己单独起一个沙盒容器"，而一个裸编译出来的可执行文件（不是标准 `.app` 结构）撑不住这个独立初始化，会在 `libsecinit_appsandbox` 直接崩溃退出——这是真实测过、复现过的问题，不是文档抄来的猜测。
 
-Tauri 的 `bundle.macOS.entitlements` 配置只支持一份文件、统一套用给 bundle 里所有可执行文件，没法原生表达"主程序一份、sidecar 另一份"。所以正常的 `npm run tauri:key` 打包+公证流程对密钥版的沙盒版本不够用——sidecar 会被套上主程序的完整权限，触发上面那个崩溃。`scripts/build-key-sandboxed.sh` 是专门写的构建脚本：先用 `--bundles app` 只打包 `.app`（不带公证，因为这时候 sidecar 权限还是错的），手动把 sidecar 重新签成精简版 entitlements、重新封装整个 bundle，验证权限都对了之后才真正提交公证——保证公证凭证对应的是权限已经修好的版本，不是错误版本走了个过场。这个脚本目前只产出 `.app`，不产出 `.dmg`（App Store 用的是 `.pkg`，不是 `.dmg`，`.pkg` 那一步还没做，需要先申请 Mac App Distribution / Mac Installer Distribution 证书）。
+Tauri 的 `bundle.macOS.entitlements` 配置只支持一份文件、统一套用给 bundle 里所有可执行文件，没法原生表达"主程序一份、sidecar 另一份"。所以正常的 `npm run tauri:key` 打包+公证流程对密钥版的沙盒版本不够用——sidecar 会被套上主程序的完整权限，触发上面那个崩溃。`scripts/build-key-sandboxed.sh` 是专门写的构建脚本：先用 `--bundles app` 只打包 `.app`（不带公证，因为这时候 sidecar 权限还是错的），手动把 sidecar 重新签成精简版 entitlements、重新封装整个 bundle，验证权限都对了之后才真正提交公证——保证公证凭证对应的是权限已经修好的版本，不是错误版本走了个过场。这个脚本只产出经 Developer ID 签名+公证的 `.app`，不是 App Store 要提交的产物。
 
-已经在真实沙盒里验证过：sidecar 能正常启动、绑定端口、响应本地 API 请求、发起真实的出站请求到知乎开放平台，系统日志里没有任何沙盒拒绝记录。剩下没做的是 App Store 特有的证书申请、打包成 `.pkg`、App Store Connect 建 App 记录和正式提交审核——这几步都需要维护者自己的 Apple 开发者账号操作。
+已经在真实沙盒里验证过：sidecar 能正常启动、绑定端口、响应本地 API 请求、发起真实的出站请求到知乎开放平台，系统日志里没有任何沙盒拒绝记录。
+
+### 密钥版的 MAS 打包（ROADMAP.md 1.4）
+
+App Store 用的是 `.pkg`，不是 `.dmg`，而且签名证书、签名身份和公证方式都跟 Developer ID 分发完全不同——不是在 `build-key-sandboxed.sh` 上改几行就行，所以另写了 `scripts/build-key-mas.sh`：
+
+- 签名身份换成 **Mac App Distribution**（Keychain 里显示为 `3rd Party Mac Developer Application: ...` 或新账号统一签发的 `Apple Distribution: ...`），不是 Developer ID Application；sidecar 仍然只签 `app-sandbox` + `inherit` 两项（原因同上）。
+- **不做公证**——MAS 构建从不公证，App Review 本身就是对应的关卡；脚本运行时会主动 unset `APPLE_ID`/`APPLE_PASSWORD`/`APPLE_TEAM_ID`，避免 Tauri 看到这几个变量就尝试（用错误的证书）公证。
+- 需要在 `.app` 的 `Contents/embedded.provisionprofile` 里嵌入为 `com.zhangyingfeng.zhidang.key` 这个 Bundle ID 申请的 **Mac App Store provisioning profile**（去 Apple Developer 后台的 Certificates, Identifiers & Profiles 申请下载），脚本默认从 `src-tauri/embedded.mas.provisionprofile` 读取，可用 `MAS_PROVISIONING_PROFILE` 环境变量指到别处。
+- 签完的 `.app` 最后用 **Mac Installer Distribution** 身份（`3rd Party Mac Developer Installer: ...` 或 `Mac Installer Distribution: ...`）通过 `productbuild` 打包成 `.pkg`。
+
+两个签名身份脚本会自动从 Keychain 按名称模式匹配，匹配到 0 个或多于 1 个都会明确报错退出（分别提示"先去装证书"或"用 `MAS_APP_IDENTITY`/`MAS_INSTALLER_IDENTITY` 环境变量消歧"），不会猜。
+
+脚本只负责本地签名打包，产出一个签好名的 `.pkg`；上传和提交审核不在脚本范围内——Apple 已经废弃 `altool` 这条命令行路径，官方现在推的是 Transporter（Mac App Store 上的图形界面应用），需要交互式登录，不适合脚本化，也涉及维护者自己的 Apple 账号操作。剩下要做的：
+
+1. 用 `scripts/build-key-mas.sh` 产出 `.pkg`（需要先装好两张证书、放好 provisioning profile）；
+2. 去 App Store Connect 建 App 记录（Bundle ID 要先在 Apple Developer 后台的 Identifiers 里注册）；
+3. 用 Transporter 上传 `.pkg`；
+4. 在 App Store Connect 里把上传的 build 关联到 App 记录，正式提交审核。
 
 ## 构建与测试
 

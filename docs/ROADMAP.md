@@ -87,7 +87,7 @@
 | 1.1 | 导出体验重构：list-first 流程、精确内容哈希检测重复并在列表里只读标出（不做自动判断）、per-item 子任务状态、暂停/继续导出、单项跳过（也是解决"疑似重复"提示的方式——跳过其中一份）、断点续传（重新指向同一目录会复用已完成的部分，不重新下载）。按展示→管理→完善分三个 preview 交付（参考 1.0.0 的节奏）| **已正式发布**——[`1.1.0`](https://github.com/zhangyingfeng/zhi-dang/releases/tag/v1.1.0)（preview.1–3 是构建过程，见 CHANGELOG.md） |
 | 1.2 | **密钥版**：知乎官方数据开放平台（Access Secret 鉴权）作为第二个 edition，不需要登录窗口，每日有官方额度限制。两个 edition 共享同一份归档引擎、UI 骨架和版本号，区别只在验证身份的方式——详见 [DEVELOPMENT.md](DEVELOPMENT.md)。这一步直接改写了原来 1.3 的判断：App Store 上架不再是"内嵌 WebView 硬闯、预期被拒"的低成本尝试，而是有知乎官方授权的正常路径 | **已正式发布** |
 | 1.3 | Apple Developer ID 签名 + 公证（两个 edition 都做），消除 Gatekeeper 警告 | **已正式发布**——[`1.3.0`](https://github.com/zhangyingfeng/zhi-dang/releases/tag/v1.3.0)。两个 edition 都已用真实 Developer ID 证书签名并通过公证，下载后直接打开，不再需要手动允许 |
-| 1.4 | 提交 Mac App Store（密钥版）：需要 App Sandbox 改造和 entitlements 配置（签名身份已在 1.3 就绪）。因为访问方式已经是知乎官方授权的，不再是"预期被拒"的心态，但审核结果仍然未知 | 进行中——最大的技术风险（sidecar 能不能在沙盒里跑）已经验证解决，见 [DEVELOPMENT.md](DEVELOPMENT.md)。还差：申请 Mac App Distribution / Mac Installer Distribution 证书、打包成 `.pkg`、App Store Connect 建 App 记录并提交审核 |
+| 1.4 | 提交 Mac App Store（密钥版）：需要 App Sandbox 改造和 entitlements 配置（签名身份已在 1.3 就绪）。因为访问方式已经是知乎官方授权的，不再是"预期被拒"的心态，但审核结果仍然未知 | 进行中——最大的技术风险（sidecar 能不能在沙盒里跑）已经验证解决，MAS 签名+打包脚本（`scripts/build-key-mas.sh`）已写好，见 [DEVELOPMENT.md](DEVELOPMENT.md)。还差：把 Mac App Distribution / Mac Installer Distribution 证书装进本机 Keychain、申请 provisioning profile、跑通打包、App Store Connect 建 App 记录并提交审核 |
 | 1.5 | Windows 打包与分发：WebView2 登录/会话验证、安装包、代码签名消除 SmartScreen 警告（只针对 login edition——key edition 的 Access Secret 方式本身就没有 WebView 会话问题，跨平台成本更低，但也未开始验证） | 未开始，不依赖 1.4 结果 |
 | 2.0 | macOS + Windows 双平台稳定，Archive Core 功能面定型 | 未开始，依赖 1.4–1.5 |
 

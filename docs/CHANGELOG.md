@@ -20,7 +20,7 @@ Adds a second, independently-buildable **key edition** alongside the existing **
 - About panel now shows which edition is running and explains the difference between the two; a "额度说明" popover next to the quota line explains the official API's daily limit with links to Zhihu's own docs and usage dashboard.
 - "保存位置"/"下载正文图片"/"开始导出" are now hidden (not just disabled) before login. Fixed two spots (`.dir-row`, `.actions`) whose `hidden` attribute only actually worked because WebKit special-cases `[hidden]` with `!important` — added explicit `[hidden]{display:none}` overrides so this is correct on any rendering engine, not just the one macOS ships today.
 
-Mac App Store signing identity, App Sandbox entitlements, notarization, and App Store Connect submission are **not** part of this release — see ROADMAP.md's 1.3/1.4. This release ships the key edition as a second downloadable build alongside the login edition, same as today's distribution channel, while that work is pending.
+Mac App Store signing identity, App Sandbox entitlements, notarization, and App Store Connect submission are **not** part of this release — see ROADMAP.md's 阶段 3. This release ships the key edition as a second downloadable build alongside the login edition, same as today's distribution channel, while that work is pending. (Developer ID signing/notarization shipped later, in 1.2.1.)
 
 ## 1.1.1
 

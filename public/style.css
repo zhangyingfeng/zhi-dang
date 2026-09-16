@@ -167,6 +167,7 @@ footer{
 .about-card{
   position:relative;background:Canvas;color:CanvasText;
   border-radius:14px;padding:32px 28px 24px;width:min(300px,calc(100% - 48px));
+  max-height:calc(100% - 48px);overflow-y:auto;
   box-shadow:0 20px 50px rgba(0,0,0,.3);text-align:center;
 }
 .close-btn{

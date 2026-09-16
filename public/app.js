@@ -78,7 +78,17 @@ function notify(title,body){
 // content and top up the difference if so, instead of guessing harder.
 async function resizeToContent(){
   const titlebarAllowance=32;
-  const measureContent=()=>document.querySelector("footer").getBoundingClientRect().bottom;
+  // A visible overlay (关于/额度说明) is position:fixed, so it never
+  // contributes to the footer's normal-flow bottom edge below — without
+  // this, the native window stays sized for whatever base screen was
+  // showing when the overlay opened (e.g. the short pre-login form), and
+  // the modal centered inside it visually spills past the actual window
+  // bounds instead of the window growing to fit it.
+  const measureContent=()=>{
+    const bottoms=[document.querySelector("footer").getBoundingClientRect().bottom];
+    for(const card of document.querySelectorAll(".overlay:not([hidden]) .about-card")) bottoms.push(card.getBoundingClientRect().bottom);
+    return Math.max(...bottoms);
+  };
   const target=measureContent()+titlebarAllowance;
   await invoke("resize_main_window",{height:target}).catch(()=>{});
   await new Promise(r=>setTimeout(r,150));
@@ -266,10 +276,11 @@ function formatQuotaLine(quotaList){
   if(!creator) return "Access Secret 已连接";
   return `Access Secret 已连接 · 今日创作能力额度剩余 ${creator.remaining}/${creator.total} 次`;
 }
-// Called right after login and again whenever an export run finishes —
-// those are the only moments the number can actually have changed, so this
-// deliberately isn't on the 1.2s status-poll timer (that would just be
-// hammering Zhihu's servers for a number nothing has updated).
+// Called right after login, whenever an export run finishes, and — via the
+// status-poll timer below — after each item completes during an export:
+// every full-text fetch actually spends one unit of the key edition's daily
+// quota, so the number keeps changing throughout a run, not just at its
+// start and end.
 async function refreshQuotaDisplay(){
   if(edition!=="key"||!loggedIn||!accessSecret) return;
   try{ $("auth-status-text").textContent=formatQuotaLine(await checkKeyQuota(accessSecret)); syncControls(); }catch{}
@@ -422,11 +433,14 @@ $("auth-btn").onclick=async()=>{
 function openAbout(){
   $("about-overlay").hidden=false;
   fetch("/api/about").then(readJson).then(({version,edition:e})=>{
+    const current=e==="key"?"密钥版":"登录版"; const other=e==="key"?"登录版":"密钥版";
     $("about-version").textContent=version;
-    $("about-edition").textContent=e==="key"?"密钥版":"登录版";
+    $("about-edition").textContent=current;
+    $("about-edition-desc").textContent=`当前使用的是${current}。另外还有${other}，如果想使用，请访问下方官网链接。`;
+    resizeToContent();
   }).catch(()=>{});
 }
-function closeAbout(){ $("about-overlay").hidden=true; }
+function closeAbout(){ $("about-overlay").hidden=true; resizeToContent(); }
 $("about-btn").onclick=openAbout;
 $("about-close").onclick=closeAbout;
 $("about-overlay").onclick=(e)=>{ if(e.target.id==="about-overlay") closeAbout(); };
@@ -440,8 +454,8 @@ $("about-repo").onclick=()=>{
 
 // Only relevant to the key edition — "额度说明" next to the quota line
 // (hidden/shown by setAuthUI) opens this same overlay pattern as "关于".
-function openQuotaHelp(){ $("quota-overlay").hidden=false; }
-function closeQuotaHelp(){ $("quota-overlay").hidden=true; }
+function openQuotaHelp(){ $("quota-overlay").hidden=false; resizeToContent(); }
+function closeQuotaHelp(){ $("quota-overlay").hidden=true; resizeToContent(); }
 $("quota-help-btn").onclick=openQuotaHelp;
 $("quota-close").onclick=closeQuotaHelp;
 $("quota-overlay").onclick=(e)=>{ if(e.target.id==="quota-overlay") closeQuotaHelp(); };
@@ -517,6 +531,10 @@ let lastPhase=null;
 // values on every tick, rather than listening for input events, means it
 // doesn't matter *how* the field changed.
 let completedAtDir=null;
+// Tracks the p.current value refreshQuotaDisplay() was last called for
+// during an export, so each item that finishes triggers exactly one quota
+// re-check instead of one per 1.2s tick regardless of progress.
+let lastQuotaCheckCurrent=null;
 setInterval(async()=>{try{
   const {progress:p}=await fetch("/api/status").then(readJson);
   // The backend's progress/tasks belong to whatever export last ran and
@@ -536,6 +554,10 @@ setInterval(async()=>{try{
   const finished=p.phase==="done"||p.phase==="quota";
   $("dot").className=p.phase==="error"?"error":finished?"done":p.phase==="idle"?"idle":"active";
   renderTasks(p.tasks);
+  if(edition==="key"&&p.phase==="exporting"&&p.current!==lastQuotaCheckCurrent){
+    lastQuotaCheckCurrent=p.current;
+    refreshQuotaDisplay();
+  }
   const nextBusy=p.phase==="listing"||p.phase==="exporting";
   if(nextBusy!==busy){ busy=nextBusy; syncControls(); }
   if(finished&&p.outputDir){

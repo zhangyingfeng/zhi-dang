@@ -160,6 +160,11 @@ export function createServer(opts: ServerOptions) {
             // breakdown behind an expand toggle instead of one opaque badge.
             else if (e.type === "images-list") { const sub = task.subtasks.find((s) => s.key === "images"); if (sub) sub.images = e.urls.map((url) => ({ url, status: "pending" as const })); progress = { ...progress, tasks }; }
             else if (e.type === "image") { const img = task.subtasks.find((s) => s.key === "images")?.images?.find((i) => i.url === e.url); if (img) { img.status = e.status; if (e.error) img.error = e.error; } progress = { ...progress, tasks }; }
+            // Backfills the read-only "疑似重复" flag onto a task discovered
+            // mid-export (see Exporter.export's noteContentHash) — may target
+            // a task whose status is already "done", which is fine: this is
+            // informational only, same as the upfront pass above.
+            else if (e.type === "duplicate") { task.duplicate = e.info; progress = { ...progress, tasks }; }
             else { task.status = e.status; if (e.error) task.error = e.error; progress = { ...progress, current: doneCount(), tasks }; }
           }, exportControl));
         } finally { exportControl = null; }

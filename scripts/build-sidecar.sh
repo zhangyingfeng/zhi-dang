@@ -39,7 +39,10 @@ if [ "$(uname)" = "Windows_NT" ] || [[ "$TARGET_TRIPLE" == *windows* ]]; then
 fi
 
 echo "==> Compiling backend with Bun ($EDITION edition, $ENTRY)"
-bun build "$ENTRY" --compile --outfile "$OUT"
+# Not a plain `bun build ... --compile` CLI call: build-sidecar-compile.mjs
+# adds a plugin (see katex-stub.mjs) that only the programmatic Bun.build()
+# API can take, not the CLI form.
+bun scripts/build-sidecar-compile.mjs "$ENTRY" "$OUT"
 
 if [ "$(uname)" = "Darwin" ]; then
   codesign --sign - --force "$OUT" 2>/dev/null || true

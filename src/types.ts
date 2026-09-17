@@ -24,7 +24,7 @@ export type TaskStatus = "pending" | "active" | "done" | "error" | "skipped";
 // SubTask so the UI can show a per-image breakdown (which one failed, why)
 // behind an expand toggle instead of cluttering the item row itself.
 export interface ImageTask { url: string; status: TaskStatus; error?: string; }
-export interface SubTask { key: "images" | "write"; status: TaskStatus; images?: ImageTask[]; }
+export interface SubTask { key: "images" | "write" | "word"; status: TaskStatus; images?: ImageTask[]; }
 // One row per answer/article in the export task list — the "展示" (visibility)
 // layer of the export redesign: replaces the single opaque progress bar with
 // per-item and per-subtask state the UI can render directly.

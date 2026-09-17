@@ -22,6 +22,7 @@
     "@tauri-apps/plugin-notification": "^2.3.3",
     "@tauri-apps/plugin-opener": "^2.5.4",
     "express": "^5.1.0",
+    "markdown-docx": "github:zhangyingfeng/markdown-docx#dfcc24b",
     "turndown": "^7.2.0",
     "zod": "^4.5.2"
   },

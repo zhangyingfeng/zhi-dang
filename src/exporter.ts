@@ -2,6 +2,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import path from "node:path";
 import TurndownService from "turndown";
+import markdownDocx, { Packer } from "markdown-docx";
 import type { DuplicateInfo, ExportControl, ExportOptions, ExportRecord, ListingReport, TaskEvent, ZhihuItem } from "./types.js";
 import { MIN_DEDUP_TEXT_LENGTH, contentHash, isoDate, normalizePlainText, safeName, sleep, writeFileAtomic, writeJson } from "./util.js";
 import { downloadImage } from "./zhihu.js";
@@ -18,7 +19,7 @@ export class Exporter {
   private imageCache=new Map<string,string>();
   async export(items:ZhihuItem[],listingReports:ListingReport[],opts:ExportOptions,source:ContentSource,onEvent:(e:TaskEvent)=>void,control:ExportControl={paused:false,skippedItemIds:new Set(),skipImagesItemIds:new Set()}){
     this.imageCache.clear(); await mkdir(opts.outputDir,{recursive:true});
-    const records:ExportRecord[]=[]; const imageFailures:ImageFailure[]=[]; const itemFailures:ItemFailure[]=[]; const skippedItems:SkippedItem[]=[];
+    const records:ExportRecord[]=[]; const imageFailures:ImageFailure[]=[]; const itemFailures:ItemFailure[]=[]; const skippedItems:SkippedItem[]=[]; const wordFailures:WordFailure[]=[];
     // Backstop for sources whose listing is metadata-only (see
     // ContentSource.fetchBody) — server.ts's own upfront pass over
     // already-known bodies is a no-op for those (nothing to hash yet), so
@@ -46,7 +47,7 @@ export class Exporter {
     // makes resume possible at all: assertSafeOutputDir trusts this file's
     // presence, and the next run reads index.json back to seed
     // control.resumedRecords with whatever already finished.
-    const persist=()=>this.writeManifests(opts.outputDir,items.length,listingReports,records,itemFailures,skippedItems,imageFailures);
+    const persist=()=>this.writeManifests(opts.outputDir,items.length,listingReports,records,itemFailures,skippedItems,imageFailures,wordFailures);
     let quotaExhausted=false;
     for(let i=0;i<items.length;i++){
       const item=items[i];
@@ -98,8 +99,24 @@ export class Exporter {
         await waitWhilePaused(control);
         onEvent({type:"subtask",id:item.id,key:"write",status:"active"});
         const markdown=this.td.turndown(html); const markdownCover=cover?.startsWith("images/")?`../${cover}`:cover; const front=["---",`id: "${item.id}"`,`type: ${item.kind}`,...(item.questionId?[`question_id: "${item.questionId}"`]:[]),`title: ${JSON.stringify(item.title)}`,`url: ${item.url}`,`created: ${isoDate(item.created)}`,`updated: ${isoDate(item.updated)}`,`voteup_count: ${item.voteupCount}`,`favorite_count: ${item.favoriteCount??"null"}`,`comment_count: ${item.commentCount}`,...(markdownCover?[`cover: ${JSON.stringify(markdownCover)}`]:[]),"---","",`# ${item.title}`,"",markdown,"",`[知乎原文](${item.url})`,""];
-        const filename=`${new Date(item.created*1000).toISOString().slice(0,10)}-${item.id}-${safeName(item.title)}.md`; await writeFileAtomic(path.join(folder,filename),front.join("\n")); records.push({...item,html:undefined,cover,file:path.relative(opts.outputDir,path.join(folder,filename))} as ExportRecord);
-        onEvent({type:"subtask",id:item.id,key:"write",status:"done"}); onEvent({type:"done",id:item.id,status:"done"});
+        const baseName=`${new Date(item.created*1000).toISOString().slice(0,10)}-${item.id}-${safeName(item.title)}`;
+        const filename=`${baseName}.md`; await writeFileAtomic(path.join(folder,filename),front.join("\n")); records.push({...item,html:undefined,cover,file:path.relative(opts.outputDir,path.join(folder,filename))} as ExportRecord);
+        onEvent({type:"subtask",id:item.id,key:"write",status:"done"});
+        onEvent({type:"subtask",id:item.id,key:"word",status:"active"});
+        try{
+          await this.writeWordDoc(item.title,item.url,markdown,path.join(opts.outputDir,"images"),path.join(opts.outputDir,"word"),`${baseName}.docx`);
+          onEvent({type:"subtask",id:item.id,key:"word",status:"done"});
+        }catch(error){
+          // Word is a secondary, derived format — the Markdown archive above
+          // already succeeded and stays the source of truth, so a docx
+          // failure is tracked separately and doesn't flip this item's
+          // overall status to "error" (matching how an image failure below
+          // doesn't either).
+          const message=error instanceof Error?error.message:String(error);
+          wordFailures.push({itemId:item.id,kind:item.kind,title:item.title,error:message});
+          onEvent({type:"subtask",id:item.id,key:"word",status:"error"});
+        }
+        onEvent({type:"done",id:item.id,status:"done"});
       }catch(error){
         const message=error instanceof Error?error.message:String(error);
         itemFailures.push({itemId:item.id,kind:item.kind,title:item.title,error:message}); onEvent({type:"done",id:item.id,status:"error",error:message});
@@ -110,12 +127,39 @@ export class Exporter {
     await persist();
     return { quotaExhausted };
   }
-  private async writeManifests(outputDir:string,discovered:number,listingReports:ListingReport[],records:ExportRecord[],itemFailures:ItemFailure[],skippedItems:SkippedItem[],imageFailures:ImageFailure[]){
-    const exportedAt=new Date().toISOString(); const summary={discovered,succeeded:records.length,failed:itemFailures.length,skipped:skippedItems.length,answers:records.filter(x=>x.kind==="answer").length,articles:records.filter(x=>x.kind==="article").length,imageFailures:imageFailures.length};
+  private async writeManifests(outputDir:string,discovered:number,listingReports:ListingReport[],records:ExportRecord[],itemFailures:ItemFailure[],skippedItems:SkippedItem[],imageFailures:ImageFailure[],wordFailures:WordFailure[]){
+    const exportedAt=new Date().toISOString(); const summary={discovered,succeeded:records.length,failed:itemFailures.length,skipped:skippedItems.length,answers:records.filter(x=>x.kind==="answer").length,articles:records.filter(x=>x.kind==="article").length,imageFailures:imageFailures.length,wordFailures:wordFailures.length};
     await writeJson(path.join(outputDir,"index.json"),{schemaVersion:"1.0.0",exportedAt,summary,items:records});
-    await writeJson(path.join(outputDir,"export-report.json"),{schemaVersion:"1.0.0",exportedAt,summary,listingReports,itemFailures,imageFailures,skippedItems});
+    await writeJson(path.join(outputDir,"export-report.json"),{schemaVersion:"1.0.0",exportedAt,summary,listingReports,itemFailures,imageFailures,wordFailures,skippedItems});
     const listingWarnings=listingReports.filter(report=>report.warning).map(report=>`- ${report.warning}`).join("\n");
-    await writeFileAtomic(path.join(outputDir,"README.md"),`# 知乎个人内容归档\n\n发现 ${summary.discovered} 项，成功 ${summary.succeeded} 项，失败 ${summary.failed} 项${summary.skipped?`，用户跳过 ${summary.skipped} 项`:""}；回答 ${summary.answers}，文章 ${summary.articles}。图片失败 ${summary.imageFailures} 项，详情见 export-report.json。${listingWarnings?`\n\n## 分页警告\n\n${listingWarnings}\n`:"\n"}`);
+    await writeFileAtomic(path.join(outputDir,"README.md"),`# 知乎个人内容归档\n\n发现 ${summary.discovered} 项，成功 ${summary.succeeded} 项，失败 ${summary.failed} 项${summary.skipped?`，用户跳过 ${summary.skipped} 项`:""}；回答 ${summary.answers}，文章 ${summary.articles}。图片失败 ${summary.imageFailures} 项，Word 转换失败 ${summary.wordFailures} 项，详情见 export-report.json。${listingWarnings?`\n\n## 分页警告\n\n${listingWarnings}\n`:"\n"}`);
+  }
+  // Converts the same Markdown body already written to the .md archive into
+  // a .docx, stored separately under outputDir/word/ rather than alongside
+  // answers/articles — a distinct, independently-consumable copy of the
+  // same content, not a replacement for the Markdown archive (which stays
+  // the source of truth: this can fail per-item without affecting it, see
+  // the try/catch around this call in export()).
+  //
+  // markdown-docx (github:zhangyingfeng/markdown-docx, a maintained fork of
+  // github.com/vace/markdown-docx — see docs/DEVELOPMENT.md) is fed the
+  // *body* markdown, not the version with YAML frontmatter prepended
+  // (front.join("\n") in export() above) — the fork does strip frontmatter
+  // by default, but there's no reason to make it re-parse and discard what
+  // we already know isn't there.
+  private async writeWordDoc(title:string,url:string,markdown:string,imagesDir:string,wordDir:string,filename:string){
+    // The Markdown's image references are relative to the .md file's own
+    // location (answers/ or articles/, one level below outputDir — see
+    // localizeImages's `../${local}` join), which only resolves correctly
+    // from there. This conversion isn't tied to any particular file's
+    // location, so absolute paths are the only path form that's actually
+    // guaranteed correct regardless of the sidecar process's cwd.
+    const absolute=markdown.replaceAll("](../images/",`](${imagesDir}${path.sep}`);
+    const withHeader=`# ${title}\n\n${absolute}\n\n[知乎原文](${url})\n`;
+    const doc=await markdownDocx(withHeader);
+    const buffer=await Packer.toBuffer(doc);
+    await mkdir(wordDir,{recursive:true});
+    await writeFile(path.join(wordDir,filename),buffer);
   }
   private async localizeImages(html:string,imageDir:string,itemId:string,extraUrls:string[]=[],onEvent?:(e:TaskEvent)=>void){
     await mkdir(imageDir,{recursive:true}); html=normalizeImageSources(html); const paths=new Map<string,string>(); const failures:ImageFailure[]=[];
@@ -142,6 +186,7 @@ export class Exporter {
 type ImageFailure={itemId:string;url:string;error:string};
 type ItemFailure={itemId:string;kind:string;title:string;error:string};
 type SkippedItem={itemId:string;kind:string;title:string};
+type WordFailure={itemId:string;kind:string;title:string;error:string};
 
 // Naming by content hash (not source URL) means images reused across posts,
 // or served from different CDN URLs with identical bytes, collapse to one

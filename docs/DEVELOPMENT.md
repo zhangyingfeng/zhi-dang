@@ -129,7 +129,8 @@ exports/
 ├── README.md
 ├── answers/*.md
 ├── articles/*.md
-└── images/*
+├── images/*
+└── word/*.docx
 ```
 
 每篇 Markdown 包含内容 ID 和类型、问题 ID、标题、原文链接、时间、公开互动数量、可用封面、Markdown 正文和本地图片引用。
@@ -152,9 +153,17 @@ exports/
 
 因此 `index.json` 和导出的 Markdown 都按长期数据格式对待，破坏兼容性的修改必须经过明确的 schema 版本设计。任何读取归档的工具都应直接使用已导出的本地数据，而不是要求用户重新访问知乎。
 
+### Word（.docx）导出
+
+`Exporter.writeWordDoc`（`src/exporter.ts`）把同一份已经写入 `.md` 的 Markdown 正文再转换成 `.docx`，存进独立的 `word/` 目录——是同一份内容的另一种呈现，不是替代 Markdown 归档；Word 转换失败只记进 `export-report.json` 的 `wordFailures`，不会影响该项目的整体成功状态（`.md` 本身照样算成功）。
+
+**为什么依赖是一个 fork，不是 npm 上的原始 `markdown-docx`**：比较过 Pandoc（原生/WASM）和几个纯 JS 的 Markdown→docx 库之后选了 [vace/markdown-docx](https://github.com/vace/markdown-docx)（MIT 协议，纯 JS、无原生依赖、体积小），但实测发现两个真实问题：图片按原始像素直接换算成 Word 单位，不会自动适配页面宽度（一张 1600px 宽的截图会变成 16 英寸+，严重溢出页面）；YAML frontmatter 没有被识别，会原样渲染成正文里的一段乱码文字。这两个问题都提了 PR 到 [zhangyingfeng/markdown-docx](https://github.com/zhangyingfeng/markdown-docx)（保留 git 历史的正式 fork，不是拷贝代码）修掉——`imageMaxWidth`/`imageMaxHeight`（默认 600×800px，等比缩放，不放大）和 `stripFrontmatter`（默认开启）都是新增的可选项，默认行为之外原有功能不受影响。`package.json` 里 `markdown-docx` 依赖固定在这个 fork 的某个 commit（`github:zhangyingfeng/markdown-docx#<sha>`），不是 npm 官方源；以后 upstream 修 bug，走 `git fetch upstream && git merge` 正常同步，不需要重新对比整份代码。
+
+**为什么 sidecar 体积没有大幅增加**：`markdown-docx` 依赖 `katex`（数学公式渲染），但知乎内容里的公式在抓取时已经被知乎自己渲染成图片，导出的 Markdown 里从来不会出现真正的 LaTeX 源码——`katex.renderToString` 这条调用路径对知档来说是可以证明永远不会被执行到的死代码，但因为是模块顶层的静态 `import`，普通打包器还是会把整个 katex 老老实实打进最终产物。`scripts/build-sidecar-compile.mjs` 用 Bun 的 `onResolve` 插件（[Bun 插件文档](https://bun.com/docs/bundler/plugins.md)）在打包这一步把 `import "katex"` 重定向到 `scripts/katex-stub.mjs`（一个几行的空壳模块，真被调用到会直接抛错而不是默默返回错误数据）——这个替换只发生在知档自己的构建脚本里，`markdown-docx` 本身完全没改。`bun build ... --compile` 这个 CLI 命令不支持传插件，所以 `build-sidecar.sh` 改成调用 `build-sidecar-compile.mjs`，用 `Bun.build()` 的编程式 API（同时支持 `compile` 和 `plugins`）代替直接跑 CLI。
+
 ## 导出任务列表与控制接口
 
-前端展示的不是单一进度条，而是一份任务列表——`GET /api/status` 返回的 `progress.tasks` 数组，每一项对应一个 `ExportTask`（`src/types.ts`）：状态（`pending`/`active`/`done`/`error`/`skipped`）、`images`/`write` 两个子任务各自的状态，以及可选的 `duplicate` 字段。
+前端展示的不是单一进度条，而是一份任务列表——`GET /api/status` 返回的 `progress.tasks` 数组，每一项对应一个 `ExportTask`（`src/types.ts`）：状态（`pending`/`active`/`done`/`error`/`skipped`）、`images`/`write`/`word` 三个子任务各自的状态，以及可选的 `duplicate` 字段。
 
 **重复检测**：`src/server.ts` 在拿到完整列表后，对每一项正文做 `contentHash`（`src/util.ts`，先用 `normalizePlainText` 去标签、合并空白，再取 SHA-256）分组，哈希相同的项互相标记为 `duplicate`。这是精确匹配，不做任何相似度/语义判断，纯粹是给用户看的提示——本身不会跳过或合并任何内容。这一步依赖列表阶段就拿到全文——key edition 的列表接口只有摘要，`html` 要等 `fetchBody`（受配额限制）才有，所以这一步对 key edition 目前是静默跳过（每一项 `normalizePlainText("").length` 恒为 0，直接被 `MIN_DEDUP_TEXT_LENGTH` 过滤掉），不会产出任何 `duplicate` 标记，也不会报错。
 

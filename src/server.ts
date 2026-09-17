@@ -141,7 +141,7 @@ export function createServer(opts: ServerOptions) {
           const alreadyDone = resumedRecords.has(it.id);
           const alreadySkipped = !alreadyDone && resumedSkippedIds.has(it.id);
           const status: TaskStatus = alreadyDone ? "done" : alreadySkipped ? "skipped" : "pending";
-          return { id: it.id, kind: it.kind, title: it.title, status, subtasks: [...(data.downloadImages ? [{ key: "images" as const, status }] : []), { key: "write" as const, status }], duplicate: contentDuplicates.get(it.id) };
+          return { id: it.id, kind: it.kind, title: it.title, status, subtasks: [...(data.downloadImages ? [{ key: "images" as const, status }] : []), { key: "write" as const, status }, { key: "word" as const, status }], duplicate: contentDuplicates.get(it.id) };
         });
         const taskById = new Map(tasks.map((t) => [t.id, t]));
         const doneCount = () => tasks.reduce((n, t) => n + (t.status === "done" || t.status === "error" || t.status === "skipped" ? 1 : 0), 0);

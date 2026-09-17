@@ -1,5 +1,5 @@
 import test from "node:test"; import assert from "node:assert/strict";
-import { mkdtemp, readFile } from "node:fs/promises"; import os from "node:os"; import path from "node:path";
+import { mkdtemp, readFile, readdir } from "node:fs/promises"; import os from "node:os"; import path from "node:path";
 import { Exporter } from "../src/exporter.js";
 import { assertSafeOutputDir } from "../src/util.js";
 import type { ContentSource } from "../src/source/types.js";
@@ -153,4 +153,32 @@ test("bodies too short for reliable comparison are never flagged as duplicates",
   const source=lazySource({"1":"<p>短</p>","2":"<p>短</p>"});
   await new Exporter().export([item("1"),item("2")],[],{outputDir,downloadImages:false,delayMs:0},source,e=>events.push(e),freshControl());
   assert.ok(!events.some(e=>e.type==="duplicate"));
+});
+
+test("each exported item also gets a .docx written to outputDir/word/, alongside the .md",async()=>{
+  const outputDir=await tmpDir(); const events:TaskEvent[]=[];
+  await new Exporter().export([item("1"),item("2")],[],{outputDir,downloadImages:false,delayMs:0},identitySource,e=>events.push(e),freshControl());
+  const wordFiles=await readdir(path.join(outputDir,"word"));
+  assert.equal(wordFiles.length,2);
+  assert.ok(wordFiles.every(f=>f.endsWith(".docx")));
+  for(const f of wordFiles){
+    const buf=await readFile(path.join(outputDir,"word",f));
+    // A .docx is a zip archive — "PK\x03\x04" is the local-file-header
+    // magic every real zip (and thus every valid docx) starts with.
+    assert.equal(buf.subarray(0,4).toString("latin1"),"PK\x03\x04");
+    assert.ok(buf.length>1000,"a near-empty file would mean the converter produced something broken");
+  }
+  const wordSubtaskEvents=events.filter(e=>e.type==="subtask"&&e.key==="word");
+  assert.deepEqual(wordSubtaskEvents.map(e=>(e as {status:string}).status),["active","done","active","done"]);
+  const report=JSON.parse(await readFile(path.join(outputDir,"export-report.json"),"utf8"));
+  assert.equal(report.summary.wordFailures,0);
+  assert.deepEqual(report.wordFailures,[]);
+});
+
+test("a skipped item gets no .docx either",async()=>{
+  const outputDir=await tmpDir();
+  const control=freshControl({skippedItemIds:new Set(["2"])});
+  await new Exporter().export([item("1"),item("2")],[],{outputDir,downloadImages:false,delayMs:0},identitySource,()=>{},control);
+  const wordFiles=await readdir(path.join(outputDir,"word"));
+  assert.equal(wordFiles.length,1);
 });

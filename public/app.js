@@ -115,7 +115,7 @@ async function resizeToContent(){
 // into a collapsed-by-default panel instead of competing with those
 // controls for space on the row.
 const statusLabel=s=>s==="active"?"进行中":s==="done"?"完成":s==="error"?"失败":s==="skipped"?"已跳过":"未开始";
-const subTaskLabel=key=>key==="images"?"图片":"写入";
+const subTaskLabel=key=>key==="images"?"图片":key==="word"?"Word":"写入";
 const taskRows=new Map();
 function clearTaskList(){
   taskRows.clear();
@@ -492,6 +492,9 @@ $("browse").onclick=async()=>{
 // next to it. It swaps back the moment "保存位置" changes to anything other
 // than the directory that just finished — see the mode toggle in the
 // polling loop below.
+$("word-reveal-btn").onclick=()=>{
+  if(lastOutputDir) invoke("plugin:opener|reveal_item_in_dir",{paths:[`${lastOutputDir}/word`]}).catch(e=>showToast(e.message||String(e),true));
+};
 $("export").onclick=async()=>{
   if($("export").dataset.mode==="reveal"){
     if(lastOutputDir) invoke("plugin:opener|reveal_item_in_dir",{paths:[lastOutputDir]}).catch(e=>showToast(e.message||String(e),true));
@@ -589,6 +592,10 @@ setInterval(async()=>{try{
   // has no bearing on that action, so it's excluded from this check.
   $("export").disabled=justCompleted?false:(busy||!loggedIn||keyQuotaExhausted());
   $("export").title=(!justCompleted&&keyQuotaExhausted())?"今日创作能力额度已用完，请明天再继续导出":"";
+  // Only ever meaningful once this run's outputDir is known and finished —
+  // same gate as the main button's reveal mode, so it appears/disappears
+  // in lockstep with it rather than needing its own tracking.
+  $("word-reveal-btn").hidden=!justCompleted;
   // Pausing only makes sense once there's an actual export loop running
   // (listing itself can't be paused — it's a couple of quick paginated
   // fetches, not the long per-item work pause targets).

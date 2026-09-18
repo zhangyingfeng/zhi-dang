@@ -75,6 +75,8 @@ npx tauri build
 
 改完源图后，三处都要重新跑一遍对应脚本，不能只生成其中一个就以为完事。网站引用图标的 `<img>` 记得把 `?v=N` 版本号加一，否则浏览器可能继续用缓存的旧图（尤其是本地反复测试同一个文件名时）。
 
+**两版图标各自换成独立设计稿时**（不是"改同一份图再自动派生另一版"），用 `scripts/apply-icon-artwork.py <原始方图.png> <输出master.png>` 而不是 `apply-apple-icon-spec.py`/`generate-login-icon.py`——后两者是历史遗留脚本：`apply-apple-icon-spec.py` 是一次性迁移脚本，假设的是"把旧的、已经改坏边距的方形图还原"这个特定场景；`generate-login-icon.py` 靠采样 `app-icon-source.png` 每个像素跟纯蓝/纯白两色的混合比例来推算登录版配色，只在两版图标其实是同一份纯色平面设计、仅背景色不同时才成立——换成两份各自独立画的写实/渐变风格设计稿（比如 1.4 版的文件夹图标）后这个假设不再满足，误跑会得到错误的重新上色结果。`apply-icon-artwork.py` 只做 Apple 官方模板要求的居中缩放到 824×824 + 100px 透明边距 + 185.4px 圆角，不对颜色做任何假设，两版各自喂一张全出血的原始方图即可。跑完之后，`npx tauri icon`/`export-web-icons.py` 这两步不变。
+
 ### 密钥版的 App Sandbox（ROADMAP.md 1.4）
 
 提交 Mac App Store 强制要求开 App Sandbox，密钥版用了两份不同的 entitlements 文件，不是一份：

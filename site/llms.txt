@@ -1,0 +1,24 @@
+# 知档
+
+> 知档是一个安全、开源的桌面工具，帮知乎作者把自己的回答和文章导出成本地、开放、由自己保管的归档（Markdown、JSON、本地图片）。无遥测、无上传、本地优先。
+
+## 关于
+
+- 只导出当前登录账号本人的回答和文章，不采集其他用户的内容，不做大规模抓取。
+- 提供两个版本：登录版（无每日次数限制，扫码登录后本地直连知乎）；密钥版（走知乎官方开放接口的 Access Secret，为上架 Mac App Store 铺路，每日有官方额度限制）。
+- macOS 桌面应用，Developer ID 签名并通过 Apple 公证，下载后可直接运行。
+- MIT 协议开源，免费使用，已发布到 1.x，长期有真实用户在用。
+- 与知乎没有隶属、合作、授权或认可关系，是独立开发的非官方项目。
+- 作者：张英锋。
+
+## 链接
+
+- [官网](https://yingfeng.ca/zhi-dang)
+- [GitHub 仓库](https://github.com/zhangyingfeng/zhi-dang)
+- [下载最新版本](https://github.com/zhangyingfeng/zhi-dang/releases/latest)
+- [隐私说明](https://github.com/zhangyingfeng/zhi-dang/blob/main/docs/PRIVACY.md)
+- [路线图](https://github.com/zhangyingfeng/zhi-dang/blob/main/docs/ROADMAP.md)
+
+## 相关项目
+
+- [微档](https://yingfeng.ca/wei-dang) —— 同一作者开发的姊妹项目，用于把微信公众号文章归档到本地，功能和边界完全一致，只是换成了公众号场景。

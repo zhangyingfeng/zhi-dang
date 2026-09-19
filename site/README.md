@@ -25,7 +25,7 @@ python3 -m http.server -d site 8000
 
 打开 <http://localhost:8000>。
 
-## 部署（Cloudflare Workers 静态资源 + 子域名）
+## 部署（Cloudflare Workers 静态资源）
 
 Cloudflare Dashboard → Workers & Pages → **Create application** → **Import a repository**
 → 选 `zhangyingfeng/zhi-dang`：
@@ -38,18 +38,23 @@ Cloudflare Dashboard → Workers & Pages → **Create application** → **Import
 | 非生产分支部署命令 | `npx wrangler versions upload`（默认，保留） |
 
 首次部署后，进这个 Worker → **Settings → Domains & Routes → Add → Custom domain**
-→ `zhi-dang.yingfeng.ca`。DNS 在 Cloudflare，会自动建 CNAME 并签证书。
+→ `zhi-dang.yingfeng.ca`。DNS 在 Cloudflare，会自动建 CNAME 并签证书。**这个子域名只是
+Cloudflare Custom Domain 机制要求的内部落地地址，不对外发布、不出现在任何文档或页面的
+链接里**——对外统一用下面的子路径地址。
 
 之后每次 push 到 `main` 自动重新部署。本地用 `npx wrangler dev` 或下面的
 `http.server` 预览。
 
-### 可选：让 `yingfeng.ca/zhi-dang` 也能进
+### 对外地址：`yingfeng.ca/zhi-dang`
 
 `yingfeng.ca` zone → Rules → Redirect Rules → Create：
 
 - 匹配：`(http.host eq "yingfeng.ca" and starts_with(http.request.uri.path, "/zhi-dang"))`
 - 动态重定向到：`concat("https://zhi-dang.yingfeng.ca", substring(http.request.uri.path, 9))`
 - 301，保留查询字符串
+
+文档、README、GitHub 仓库的 homepage 字段等所有对外展示的链接，一律写 `yingfeng.ca/zhi-dang`；
+`zhi-dang.yingfeng.ca` 只在这份部署说明里，作为配置 Custom Domain 时要填的值出现。
 
 ## 更新截图 / 图标
 

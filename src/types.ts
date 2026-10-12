@@ -13,12 +13,15 @@ export interface ZhihuItem {
   favoriteCount: number | null;
   commentCount: number;
   coverUrl: string | null;
+  // true for a Zhihu paid-knowledge answer; null when the source cannot tell
+  // (articles, and the key edition's official API).
+  isPaid: boolean | null;
 }
 export interface ExportOptions { outputDir: string; downloadImages: boolean; delayMs: number; }
 // What index.json actually stores per item: the source ZhihuItem minus its
 // raw html (already folded into the written Markdown, so keeping it here
 // too would just double the file size) plus where it ended up on disk.
-export interface ExportRecord extends Omit<ZhihuItem,"html"> { cover: string | null; file: string; }
+export interface ExportRecord extends Omit<ZhihuItem,"html"> { cover: string | null; file: string; truncated: boolean; }
 export type TaskStatus = "pending" | "active" | "done" | "error" | "skipped";
 // One row per image referenced by an item — nested inside the "images"
 // SubTask so the UI can show a per-image breakdown (which one failed, why)

@@ -13,7 +13,7 @@ const identitySource:ContentSource={listAll:async()=>({items:[],reports:[]}),fet
 const item=(id:string,overrides:Partial<ZhihuItem>={}):ZhihuItem=>({
   id,kind:"answer",questionId:"q1",title:`标题 ${id}`,url:`https://example.com/${id}`,
   html:`<p>正文 ${id}</p>`,excerpt:"",created:1700000000,updated:1700000000,
-  voteupCount:0,favoriteCount:null,commentCount:0,coverUrl:null,...overrides,
+  voteupCount:0,favoriteCount:null,commentCount:0,coverUrl:null,isPaid:null,...overrides,
 });
 const freshControl=(overrides:Partial<ExportControl>={}):ExportControl=>({paused:false,skippedItemIds:new Set(),skipImagesItemIds:new Set(),...overrides});
 

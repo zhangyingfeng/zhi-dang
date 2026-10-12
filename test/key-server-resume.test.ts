@@ -11,7 +11,7 @@ import type { ZhihuItem } from "../src/types.js";
 // test/exporter-quota.test.ts) only ever call Exporter.export directly, so
 // they never touch this glue code at all.
 const tmpDir = () => mkdtemp(path.join(os.tmpdir(), "key-resume-test-"));
-const item = (id: string): ZhihuItem => ({ id, kind: "answer", questionId: null, title: `标题 ${id}`, url: `https://www.zhihu.com/answer/${id}`, html: "", excerpt: "", created: 1700000000 + Number(id), updated: 1700000000 + Number(id), voteupCount: 0, favoriteCount: null, commentCount: 0, coverUrl: null });
+const item = (id: string): ZhihuItem => ({ id, kind: "answer", questionId: null, title: `标题 ${id}`, url: `https://www.zhihu.com/answer/${id}`, html: "", excerpt: "", created: 1700000000 + Number(id), updated: 1700000000 + Number(id), voteupCount: 0, favoriteCount: null, commentCount: 0, coverUrl: null, isPaid: null });
 
 async function waitForPhase(base: string, phases: string[], timeoutMs = 5000) {
   const deadline = Date.now() + timeoutMs;

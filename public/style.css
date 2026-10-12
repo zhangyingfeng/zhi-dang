@@ -124,6 +124,12 @@ progress::-webkit-progress-value{background:AccentColor;border-radius:2px;transi
   flex-shrink:0;font-size:10px;padding:1px 6px;border-radius:8px;
   background:color-mix(in srgb,#eda100 22%,Canvas);color:color-mix(in srgb,#eda100 65%,CanvasText);
 }
+/* Zhihu paid-knowledge answer (exported as a preview only). Same shape as
+   .task-dup, tinted purple so the two read as different things. */
+.task-paid{
+  flex-shrink:0;font-size:10px;padding:1px 6px;border-radius:8px;
+  background:color-mix(in srgb,#7a5af8 20%,Canvas);color:color-mix(in srgb,#7a5af8 70%,CanvasText);
+}
 /* Reserved for per-item management controls (pause/skip, duplicate-merge,
    resume) in a later pass — the expand toggle is the first thing to live
    here so that later additions don't need to redo the row layout. */

@@ -6,6 +6,7 @@ Paid-knowledge answers are now exported as a preview only, with a pointer back t
 
 - Login edition: the answer listing now requests `answer_type`; `answer_type === "paid_knowledge"` marks an answer as paid (`isPaid: true`). Articles and the key edition's official API expose no paid marker, so their `isPaid` is `null` and they are exported in full as before.
 - A paid answer keeps about the first 10% of its text, cut at a paragraph boundary (always at least the first paragraph), followed by a notice linking to the original on Zhihu. The 10% is an approximation chosen for the archive, not Zhihu's actual preview length. Truncation happens before images are downloaded, so images beyond the preview are not fetched.
+- The export task list shows a "付费" badge (next to "疑似重复") on paid-knowledge answers, from the moment the listing is known. Articles have no paid marker, so they never show it.
 - `index.json` and `export-report.json` bump `schemaVersion` to `1.1.0`. New fields (backward compatible): per-item `isPaid` (`boolean | null`) and `truncated` (`boolean`); `summary.truncated` and `truncatedItems` in `export-report.json`. Markdown front matter gains `paid: true` / `truncated: true` where applicable.
 
 ## 1.3.0

@@ -132,6 +132,8 @@ function buildTaskRow(t){
   // here so the user can see them, but no merge/skip action exists yet
   // (that's a later "管理" pass); hidden by default, toggled in patchTaskRow.
   const dup=document.createElement("span"); dup.className="task-dup"; dup.textContent="疑似重复"; dup.hidden=true;
+  // Known from the listing (answer_type), so it shows before the item is exported.
+  const paid=document.createElement("span"); paid.className="task-paid"; paid.textContent="付费"; paid.title="知乎付费知识回答，仅导出前 10%"; paid.hidden=true;
   const actions=document.createElement("span"); actions.className="task-actions";
   // Only meaningful while the item hasn't started — skipping something
   // already in flight or finished would mean touching a file already
@@ -140,7 +142,7 @@ function buildTaskRow(t){
   skipBtn.onclick=()=>{ skipBtn.disabled=true; post("/api/export/skip",{id:t.id,scope:"item"}).catch(e=>{ skipBtn.disabled=false; showToast(e.message||String(e),true); }); };
   const expandBtn=document.createElement("button"); expandBtn.type="button"; expandBtn.className="task-expand"; expandBtn.textContent="▸"; expandBtn.setAttribute("aria-label","展开详情");
   actions.append(skipBtn,expandBtn);
-  row.append(dot,kind,title,dup,actions);
+  row.append(dot,kind,title,paid,dup,actions);
 
   const detail=document.createElement("div"); detail.className="task-detail"; detail.hidden=true;
   const subEls=new Map();
@@ -166,13 +168,14 @@ function buildTaskRow(t){
     resizeToContent();
   };
   item.append(row,detail);
-  return {item,dot,dup,skipBtn,subEls};
+  return {item,dot,dup,paid,skipBtn,subEls};
 }
 function patchTaskRow(entry,t){
   entry.item.classList.toggle("skipped",t.status==="skipped");
   entry.dot.className="task-dot "+t.status;
   entry.dot.title=statusLabel(t.status)+(t.error?`：${t.error}`:"");
   entry.dup.hidden=!t.duplicate;
+  entry.paid.hidden=!t.paid;
   if(t.duplicate) entry.dup.title=`与 ${t.duplicate.otherTitles.length} 项内容完全一致：${t.duplicate.otherTitles.join("、")}`;
   entry.skipBtn.hidden=t.status!=="pending";
   for(const s of t.subtasks){

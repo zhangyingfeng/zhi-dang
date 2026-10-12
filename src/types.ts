@@ -36,7 +36,7 @@ export interface SubTask { key: "images" | "write" | "word"; status: TaskStatus;
 // signal only, surfaced read-only for now; deciding what to do about it
 // (merge/skip) is a later "管理" pass, not this one.
 export interface DuplicateInfo { groupSize: number; otherTitles: string[]; }
-export interface ExportTask { id: string; kind: ContentKind; title: string; status: TaskStatus; subtasks: SubTask[]; error?: string; duplicate?: DuplicateInfo; }
+export interface ExportTask { id: string; kind: ContentKind; title: string; status: TaskStatus; subtasks: SubTask[]; error?: string; duplicate?: DuplicateInfo; paid?: boolean; }
 // Emitted by Exporter.export as it works through each item, so the caller
 // (src/server.ts) can update its own ExportTask list without the exporter
 // needing to know anything about how progress is surfaced.

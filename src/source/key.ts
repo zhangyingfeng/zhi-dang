@@ -70,6 +70,8 @@ function normalizeOfficialItem(kind: ContentKind, x: any): ZhihuItem {
     commentCount: Number(x.CommentCount ?? 0),
     // Not provided by this endpoint.
     coverUrl: null,
+    // The official API exposes no paid-content marker.
+    isPaid: null,
   };
 }
 

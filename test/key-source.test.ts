@@ -16,7 +16,7 @@ async function withMockFetch(handler: (url: URL) => unknown, run: () => Promise<
   try { await run(); } finally { globalThis.fetch = original; }
 }
 
-const sampleItem: ZhihuItem = { id: "1", kind: "answer", questionId: null, title: "标题", url: "https://www.zhihu.com/answer/1", html: "", excerpt: "", created: 0, updated: 0, voteupCount: 0, favoriteCount: null, commentCount: 0, coverUrl: null };
+const sampleItem: ZhihuItem = { id: "1", kind: "answer", questionId: null, title: "标题", url: "https://www.zhihu.com/answer/1", html: "", excerpt: "", created: 0, updated: 0, voteupCount: 0, favoriteCount: null, commentCount: 0, coverUrl: null, isPaid: null };
 
 test("listAll paginates via Offset/NextOffset, maps answer/article, and drops other content types", async () => {
   const pages: Record<number, unknown> = {

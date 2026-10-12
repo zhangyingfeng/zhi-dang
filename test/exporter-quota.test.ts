@@ -5,7 +5,7 @@ import { QuotaExhaustedError, type ContentSource } from "../src/source/types.js"
 import type { ExportControl, ExportRecord, TaskEvent, ZhihuItem } from "../src/types.js";
 
 const tmpDir = () => mkdtemp(path.join(os.tmpdir(), "export-quota-test-"));
-const item = (id: string): ZhihuItem => ({ id, kind: "answer", questionId: null, title: `标题 ${id}`, url: `https://example.com/${id}`, html: "", excerpt: "", created: 1700000000, updated: 1700000000, voteupCount: 0, favoriteCount: null, commentCount: 0, coverUrl: null });
+const item = (id: string): ZhihuItem => ({ id, kind: "answer", questionId: null, title: `标题 ${id}`, url: `https://example.com/${id}`, html: "", excerpt: "", created: 1700000000, updated: 1700000000, voteupCount: 0, favoriteCount: null, commentCount: 0, coverUrl: null, isPaid: null });
 const freshControl = (overrides: Partial<ExportControl> = {}): ExportControl => ({ paused: false, skippedItemIds: new Set(), skipImagesItemIds: new Set(), ...overrides });
 const identitySource: ContentSource = { listAll: async () => ({ items: [], reports: [] }), fetchBody: async (it) => `<p>${it.id}</p>` };
 

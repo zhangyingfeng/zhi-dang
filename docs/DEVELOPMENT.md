@@ -137,6 +137,8 @@ exports/
 
 每篇 Markdown 包含内容 ID 和类型、问题 ID、标题、原文链接、时间、公开互动数量、可用封面、Markdown 正文和本地图片引用。
 
+**付费回答**：登录版的回答列表会请求 `answer_type`，值为 `paid_knowledge` 时记为 `isPaid: true`，导出时只保留正文前约 10%（在段落边界截断，至少保留首段），并在截断处附上知乎原文链接，提示前往知乎付费阅读。10% 是归档侧的近似值，不等于知乎实际的试读长度。截断发生在图片下载之前，试读范围之外的图片不会被下载。文章和密钥版（官方接口没有付费标记）的 `isPaid` 为 `null`，保持完整导出。`index.json` 每项带 `isPaid` 和 `truncated`，`export-report.json` 的 `summary.truncated` 和 `truncatedItems` 列出被截断的条目；`schemaVersion` 为 `1.1.0`。
+
 `index.json` 是供其他工具直接读取的索引。`export-report.json` 记录发现、成功、失败、跳过数量，以及文章、图片失败和用户跳过项的详情。收藏数在接口没有返回时保存为 `null`，不会伪装成零。
 
 `index.json`/`export-report.json`/`README.md` 这三个文件在每一项处理完（成功、失败或跳过）之后都会重写一次，不是等整个导出跑完才写——这样即使应用中途被关闭或崩溃，目录里也会留下当时已完成的进度，而不是什么都没有。写入方式是先写临时文件再原子性地 rename 到目标路径（`writeFileAtomic`），确保中途被打断时不会把半截内容误当成完整文件。

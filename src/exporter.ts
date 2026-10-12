@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import path from "node:path";
 import TurndownService from "turndown";
 import markdownDocx, { Packer } from "markdown-docx";
+import { truncatePaidPreview } from "./paywall.js";
 import type { DuplicateInfo, ExportControl, ExportOptions, ExportRecord, ListingReport, TaskEvent, ZhihuItem } from "./types.js";
 import { MIN_DEDUP_TEXT_LENGTH, contentHash, isoDate, normalizePlainText, safeName, sleep, writeFileAtomic, writeJson } from "./util.js";
 import { downloadImage } from "./zhihu.js";
@@ -83,24 +84,29 @@ export class Exporter {
         await persist(); await sleep(opts.delayMs); continue;
       }
       noteContentHash(item,html);
+      // Paid-knowledge answers are cut before images are localized so nothing
+      // beyond the preview is downloaded.
+      let truncated=false;
+      if(item.isPaid===true){ const preview=truncatePaidPreview(html,item.url); html=preview.html; truncated=preview.truncated; }
+      const coverUrl=truncated&&item.coverUrl&&!html.includes(item.coverUrl)?null:item.coverUrl;
       onEvent({type:"start",id:item.id});
       try{
-        const folder=path.join(opts.outputDir,item.kind==="answer"?"answers":"articles"); await mkdir(folder,{recursive:true}); let cover:string|null=item.coverUrl;
+        const folder=path.join(opts.outputDir,item.kind==="answer"?"answers":"articles"); await mkdir(folder,{recursive:true}); let cover:string|null=coverUrl;
         if(opts.downloadImages){
           if(control.skipImagesItemIds.has(item.id)){
             onEvent({type:"subtask",id:item.id,key:"images",status:"skipped"});
           }else{
             onEvent({type:"subtask",id:item.id,key:"images",status:"active"});
-            const localized=await this.localizeImages(html,path.join(opts.outputDir,"images"),item.id,item.coverUrl?[item.coverUrl]:[],onEvent);
-            html=localized.html; imageFailures.push(...localized.failures); if(item.coverUrl&&localized.paths.has(item.coverUrl))cover=localized.paths.get(item.coverUrl)!;
+            const localized=await this.localizeImages(html,path.join(opts.outputDir,"images"),item.id,coverUrl?[coverUrl]:[],onEvent);
+            html=localized.html; imageFailures.push(...localized.failures); if(coverUrl&&localized.paths.has(coverUrl))cover=localized.paths.get(coverUrl)!;
             onEvent({type:"subtask",id:item.id,key:"images",status:localized.failures.length?"error":"done"});
           }
         }
         await waitWhilePaused(control);
         onEvent({type:"subtask",id:item.id,key:"write",status:"active"});
-        const markdown=this.td.turndown(html); const markdownCover=cover?.startsWith("images/")?`../${cover}`:cover; const front=["---",`id: "${item.id}"`,`type: ${item.kind}`,...(item.questionId?[`question_id: "${item.questionId}"`]:[]),`title: ${JSON.stringify(item.title)}`,`url: ${item.url}`,`created: ${isoDate(item.created)}`,`updated: ${isoDate(item.updated)}`,`voteup_count: ${item.voteupCount}`,`favorite_count: ${item.favoriteCount??"null"}`,`comment_count: ${item.commentCount}`,...(markdownCover?[`cover: ${JSON.stringify(markdownCover)}`]:[]),"---","",`# ${item.title}`,"",markdown,"",`[知乎原文](${item.url})`,""];
+        const markdown=this.td.turndown(html); const markdownCover=cover?.startsWith("images/")?`../${cover}`:cover; const front=["---",`id: "${item.id}"`,`type: ${item.kind}`,...(item.questionId?[`question_id: "${item.questionId}"`]:[]),`title: ${JSON.stringify(item.title)}`,`url: ${item.url}`,`created: ${isoDate(item.created)}`,`updated: ${isoDate(item.updated)}`,`voteup_count: ${item.voteupCount}`,`favorite_count: ${item.favoriteCount??"null"}`,`comment_count: ${item.commentCount}`,...(item.isPaid===true?["paid: true"]:[]),...(truncated?["truncated: true"]:[]),...(markdownCover?[`cover: ${JSON.stringify(markdownCover)}`]:[]),"---","",`# ${item.title}`,"",markdown,"",`[知乎原文](${item.url})`,""];
         const baseName=`${new Date(item.created*1000).toISOString().slice(0,10)}-${item.id}-${safeName(item.title)}`;
-        const filename=`${baseName}.md`; await writeFileAtomic(path.join(folder,filename),front.join("\n")); records.push({...item,html:undefined,cover,file:path.relative(opts.outputDir,path.join(folder,filename))} as ExportRecord);
+        const filename=`${baseName}.md`; await writeFileAtomic(path.join(folder,filename),front.join("\n")); records.push({...item,html:undefined,coverUrl,cover,truncated,file:path.relative(opts.outputDir,path.join(folder,filename))} as ExportRecord);
         onEvent({type:"subtask",id:item.id,key:"write",status:"done"});
         onEvent({type:"subtask",id:item.id,key:"word",status:"active"});
         try{
@@ -128,9 +134,9 @@ export class Exporter {
     return { quotaExhausted };
   }
   private async writeManifests(outputDir:string,discovered:number,listingReports:ListingReport[],records:ExportRecord[],itemFailures:ItemFailure[],skippedItems:SkippedItem[],imageFailures:ImageFailure[],wordFailures:WordFailure[]){
-    const exportedAt=new Date().toISOString(); const summary={discovered,succeeded:records.length,failed:itemFailures.length,skipped:skippedItems.length,answers:records.filter(x=>x.kind==="answer").length,articles:records.filter(x=>x.kind==="article").length,imageFailures:imageFailures.length,wordFailures:wordFailures.length};
-    await writeJson(path.join(outputDir,"index.json"),{schemaVersion:"1.0.0",exportedAt,summary,items:records});
-    await writeJson(path.join(outputDir,"export-report.json"),{schemaVersion:"1.0.0",exportedAt,summary,listingReports,itemFailures,imageFailures,wordFailures,skippedItems});
+    const exportedAt=new Date().toISOString(); const summary={discovered,succeeded:records.length,failed:itemFailures.length,skipped:skippedItems.length,answers:records.filter(x=>x.kind==="answer").length,articles:records.filter(x=>x.kind==="article").length,imageFailures:imageFailures.length,wordFailures:wordFailures.length,truncated:records.filter(x=>x.truncated).length};
+    await writeJson(path.join(outputDir,"index.json"),{schemaVersion:"1.1.0",exportedAt,summary,items:records});
+    await writeJson(path.join(outputDir,"export-report.json"),{schemaVersion:"1.1.0",exportedAt,summary,listingReports,itemFailures,imageFailures,wordFailures,skippedItems,truncatedItems:records.filter(x=>x.truncated).map(x=>({itemId:x.id,kind:x.kind,title:x.title,url:x.url}))});
     const listingWarnings=listingReports.filter(report=>report.warning).map(report=>`- ${report.warning}`).join("\n");
     await writeFileAtomic(path.join(outputDir,"README.md"),`# 知乎个人内容归档\n\n发现 ${summary.discovered} 项，成功 ${summary.succeeded} 项，失败 ${summary.failed} 项${summary.skipped?`，用户跳过 ${summary.skipped} 项`:""}；回答 ${summary.answers}，文章 ${summary.articles}。图片失败 ${summary.imageFailures} 项，Word 转换失败 ${summary.wordFailures} 项，详情见 export-report.json。${listingWarnings?`\n\n## 分页警告\n\n${listingWarnings}\n`:"\n"}`);
   }

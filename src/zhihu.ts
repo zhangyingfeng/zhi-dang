@@ -6,13 +6,13 @@ export type PageFetcher = (url:string) => Promise<ApiPage>;
 export interface PaginateOptions { onCount?:(n:number)=>void; delayMs?:number; maxPages?:number; }
 
 export function buildListingUrl(kind:ContentKind,token:string){
-  return kind==="answer"?`https://www.zhihu.com/api/v4/members/${token}/answers?include=data[*].content,excerpt,created_time,updated_time,voteup_count,favlists_count,comment_count,thumbnail,question.title,question.id&limit=20&offset=0&sort_by=created`:`https://www.zhihu.com/api/v4/members/${token}/articles?include=data[*].content,excerpt,created,updated,voteup_count,favlists_count,comment_count,title,url,image_url&limit=20&offset=0&sort_by=created`;
+  return kind==="answer"?`https://www.zhihu.com/api/v4/members/${token}/answers?include=data[*].content,excerpt,created_time,updated_time,voteup_count,favlists_count,comment_count,thumbnail,answer_type,question.title,question.id&limit=20&offset=0&sort_by=created`:`https://www.zhihu.com/api/v4/members/${token}/articles?include=data[*].content,excerpt,created,updated,voteup_count,favlists_count,comment_count,title,url,image_url&limit=20&offset=0&sort_by=created`;
 }
 
 export function normalizeItem(kind:ContentKind,x:any):ZhihuItem {
   const question=x.question??{}; const id=String(x.id); const html=String(x.content||"");
   const favoriteRaw=x.favlists_count??x.favorite_count;
-  return {id,kind,questionId:kind==="answer"&&question.id!=null?String(question.id):null,title:kind==="answer"?(question.title||`回答 ${id}`):(x.title||`文章 ${id}`),url:x.url||(kind==="answer"?`https://www.zhihu.com/question/${question.id}/answer/${id}`:`https://zhuanlan.zhihu.com/p/${id}`),html,excerpt:(x.excerpt||"").replace(/<[^>]+>/g,""),created:Number(x.created_time??x.created??0),updated:Number(x.updated_time??x.updated??x.created??0),voteupCount:Number(x.voteup_count??0),favoriteCount:favoriteRaw==null?null:Number(favoriteRaw),commentCount:Number(x.comment_count??0),coverUrl:cleanImageUrl(x.image_url??x.thumbnail)??firstImageUrl(html)};
+  return {id,kind,questionId:kind==="answer"&&question.id!=null?String(question.id):null,title:kind==="answer"?(question.title||`回答 ${id}`):(x.title||`文章 ${id}`),url:x.url||(kind==="answer"?`https://www.zhihu.com/question/${question.id}/answer/${id}`:`https://zhuanlan.zhihu.com/p/${id}`),html,excerpt:(x.excerpt||"").replace(/<[^>]+>/g,""),created:Number(x.created_time??x.created??0),updated:Number(x.updated_time??x.updated??x.created??0),voteupCount:Number(x.voteup_count??0),favoriteCount:favoriteRaw==null?null:Number(favoriteRaw),commentCount:Number(x.comment_count??0),coverUrl:cleanImageUrl(x.image_url??x.thumbnail)??firstImageUrl(html),isPaid:kind=="answer"&&typeof x.answer_type==="string"?x.answer_type==="paid_knowledge":null};
 }
 
 export async function paginateListing(kind:ContentKind,startUrl:string,fetchPage:PageFetcher,options:PaginateOptions={}):Promise<ListingResult>{

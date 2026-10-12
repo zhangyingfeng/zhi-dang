@@ -34,7 +34,7 @@
     "@types/node": "^26.4.0",
     "@types/turndown": "^5.0.5",
     "jsdom": "^30.0.1",
-    "tsx": "^4.20.3",
+    "tsx": "^4.23.15",
     "typescript": "^7.0.2"
   },
   "engines": {

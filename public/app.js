@@ -585,7 +585,7 @@ setInterval(async()=>{try{
       // item was exported or 166 items in, the user needs to actually see
       // why the run stopped short, not just infer it from a static message
       // line. A native modal blocks until acknowledged.
-      if(p.phase==="quota") invoke("plugin:dialog|message",{message:p.message,title:"知档 · 创作能力配额已用完",kind:"warning"}).catch(()=>{});
+      if(p.phase==="quota") invoke("plugin:dialog|ask",{message:p.message+"\n\n登录版没有每日额度限制，详见官网 yingfeng.ca/zhi-dang。",title:"知档 · 创作能力配额已用完",kind:"warning",okLabel:"打开官网",cancelLabel:"关闭"}).then((open)=>{ if(open) return invoke("plugin:opener|open_url",{url:"https://yingfeng.ca/zhi-dang"}); }).catch(()=>{});
       if(p.phase==="risk") invoke("plugin:dialog|message",{message:p.message,title:"知档 · 知乎风控已拒绝请求",kind:"warning"}).catch(()=>{});
       completedAtDir=$("dir").value;
       refreshQuotaDisplay();

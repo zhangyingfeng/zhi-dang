@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+Key edition: the daily quota is no longer hard-coded in the UI or docs.
+
+- The quota help overlay, README and DEVELOPMENT.md now say the daily count follows Zhihu's open platform instead of quoting 100 / 10; the app already shows the real remaining count from the official quota endpoint.
+- The "配额已用完" dialog now ends with a pointer to the login edition (no daily quota limit) and the project website; the dialog has an "打开官网" button that opens the project website home page (no direct download link); needs the `dialog:allow-ask` capability.
+
 Key edition: a risk-control rejection (code 30003) from the Zhihu open platform now stops the export instead of being treated as a single-item failure.
 
 - `fetchBody` throws `RiskControlError` on 30003. `Exporter.export` stops sending requests, leaves the rejected and remaining items "pending" (resumable, not recorded as failures) and returns `riskBlocked`. The UI shows a new `risk` phase with a native dialog asking the user to wait before continuing. Previously the run carried on to every remaining item.

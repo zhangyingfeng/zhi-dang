@@ -23,6 +23,7 @@
     "allow-clear-access-secret",
     "dialog:allow-open",
     "dialog:allow-message",
+    "dialog:allow-ask",
     "opener:allow-reveal-item-in-dir",
     "opener:allow-open-url",
     "opener:allow-default-urls",

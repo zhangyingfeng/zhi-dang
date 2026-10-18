@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { sleep } from "../util.js";
-import { QuotaExhaustedError, type ContentSource } from "./types.js";
+import { QuotaExhaustedError, RiskControlError, type ContentSource } from "./types.js";
 import type { ContentKind, ListingReport, ZhihuItem } from "../types.js";
 
 // Zhihu's official Data Open Platform (developer.zhihu.com) — the
@@ -132,6 +132,9 @@ export class KeyContentSource implements ContentSource {
     // resuming later is harmless either way, both codes are treated the
     // same: stop for now, let the caller resume on a later run.
     if (page.Code === 30001 || page.Code === 30002) throw new QuotaExhaustedError(officialErrorMessage(page.Code, page.Message));
+    // 30003 is a risk-control rejection, not a rate limit: stop the whole run
+    // instead of failing this one item and carrying on to the next.
+    if (page.Code === 30003) throw new RiskControlError(officialErrorMessage(page.Code, page.Message));
     if (page.Code !== 0) throw new Error(officialErrorMessage(page.Code, page.Message));
     const body = page.Data?.Body;
     if (typeof body !== "string" || !body) throw new Error("知乎开放平台未返回可用正文。");

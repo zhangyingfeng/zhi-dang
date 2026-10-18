@@ -184,6 +184,23 @@ test("a duplicate-flagged item shows the read-only badge; others don't",async()=
   assert.equal(rows[1].querySelector(".task-dup").hidden,true);
 });
 
+test("a paid item shows the paid badge, independently of the duplicate badge",async()=>{
+  const h=createHarness({checkLoginStatus:{loggedIn:true}});
+  await flush();
+  h.setStatus({phase:"exporting",message:"x",tasks:[
+    {id:"1",kind:"answer",title:"a",status:"pending",subtasks:[],paid:true},
+    {id:"2",kind:"answer",title:"b",status:"pending",subtasks:[]},
+    {id:"3",kind:"answer",title:"c",status:"pending",subtasks:[],paid:true,duplicate:{groupSize:2,otherTitles:["x"]}},
+  ]});
+  await h.tick();
+  const rows=h.document.querySelectorAll(".task-item");
+  assert.equal(rows[0].querySelector(".task-paid").hidden,false);
+  assert.equal(rows[0].querySelector(".task-dup").hidden,true);
+  assert.equal(rows[1].querySelector(".task-paid").hidden,true);
+  assert.equal(rows[2].querySelector(".task-paid").hidden,false);
+  assert.equal(rows[2].querySelector(".task-dup").hidden,false);
+});
+
 test("skip button is shown only while an item is pending, and posts the right scope",async()=>{
   const h=createHarness({checkLoginStatus:{loggedIn:true}});
   await flush();

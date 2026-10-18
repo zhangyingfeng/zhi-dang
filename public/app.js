@@ -132,6 +132,8 @@ function buildTaskRow(t){
   // here so the user can see them, but no merge/skip action exists yet
   // (that's a later "管理" pass); hidden by default, toggled in patchTaskRow.
   const dup=document.createElement("span"); dup.className="task-dup"; dup.textContent="疑似重复"; dup.hidden=true;
+  // Known from the listing (answer_type), so it shows before the item is exported.
+  const paid=document.createElement("span"); paid.className="task-paid"; paid.textContent="付费"; paid.title="知乎付费知识回答，仅导出前 10%"; paid.hidden=true;
   const actions=document.createElement("span"); actions.className="task-actions";
   // Only meaningful while the item hasn't started — skipping something
   // already in flight or finished would mean touching a file already
@@ -140,7 +142,7 @@ function buildTaskRow(t){
   skipBtn.onclick=()=>{ skipBtn.disabled=true; post("/api/export/skip",{id:t.id,scope:"item"}).catch(e=>{ skipBtn.disabled=false; showToast(e.message||String(e),true); }); };
   const expandBtn=document.createElement("button"); expandBtn.type="button"; expandBtn.className="task-expand"; expandBtn.textContent="▸"; expandBtn.setAttribute("aria-label","展开详情");
   actions.append(skipBtn,expandBtn);
-  row.append(dot,kind,title,dup,actions);
+  row.append(dot,kind,title,paid,dup,actions);
 
   const detail=document.createElement("div"); detail.className="task-detail"; detail.hidden=true;
   const subEls=new Map();
@@ -166,13 +168,14 @@ function buildTaskRow(t){
     resizeToContent();
   };
   item.append(row,detail);
-  return {item,dot,dup,skipBtn,subEls};
+  return {item,dot,dup,paid,skipBtn,subEls};
 }
 function patchTaskRow(entry,t){
   entry.item.classList.toggle("skipped",t.status==="skipped");
   entry.dot.className="task-dot "+t.status;
   entry.dot.title=statusLabel(t.status)+(t.error?`：${t.error}`:"");
   entry.dup.hidden=!t.duplicate;
+  entry.paid.hidden=!t.paid;
   if(t.duplicate) entry.dup.title=`与 ${t.duplicate.otherTitles.length} 项内容完全一致：${t.duplicate.otherTitles.join("、")}`;
   entry.skipBtn.hidden=t.status!=="pending";
   for(const s of t.subtasks){
@@ -442,7 +445,13 @@ function openAbout(){
     const current=e==="key"?"密钥版":"登录版"; const other=e==="key"?"登录版":"密钥版";
     $("about-version").textContent=version;
     $("about-edition").textContent=current;
-    $("about-edition-desc").textContent=`当前${current} · 另有${other}，见上方网站`;
+    $("about-icon").src=e==="key"?"/icon-key.png":"/icon-login.png";
+    // The website mention is a real link (same target as the "网站" row above),
+    // so it's built from DOM nodes rather than a single text string.
+    const desc=$("about-edition-desc");
+    const [before,linkText,after]=e==="key"?["登录版没有额度限制，访问","知档官网",""]:[`当前${current} · 另有${other}，见上方`,"网站",""];
+    const link=document.createElement("button"); link.type="button"; link.className="link-inline"; link.textContent=linkText; link.onclick=openWebsite;
+    desc.replaceChildren(before,link,after);
     resizeToContent();
   }).catch(()=>{});
 }
@@ -451,9 +460,10 @@ $("about-btn").onclick=openAbout;
 $("about-close").onclick=closeAbout;
 $("about-overlay").onclick=(e)=>{ if(e.target.id==="about-overlay") closeAbout(); };
 document.addEventListener("keydown",(e)=>{ if(e.key==="Escape"&&!$("about-overlay").hidden) closeAbout(); });
-$("about-website").onclick=()=>{
+function openWebsite(){
   invoke("plugin:opener|open_url",{url:"https://yingfeng.ca/zhi-dang"}).catch(e=>showToast(e.message||String(e),true));
-};
+}
+$("about-website").onclick=openWebsite;
 $("about-repo").onclick=()=>{
   invoke("plugin:opener|open_url",{url:"https://github.com/zhangyingfeng/zhi-dang"}).catch(e=>showToast(e.message||String(e),true));
 };
@@ -556,11 +566,13 @@ setInterval(async()=>{try{
   $("message").textContent=p.message;
   $("count").textContent=p.total?`${p.current||0} / ${p.total}`:(p.current?String(p.current):"");
   $("bar").value=p.total?100*(p.current||0)/p.total:0;
+  // "risk" is handled like "quota": a partial, resumable archive, stopped
+  // because Zhihu's risk control rejected a request.
   // "quota" (see src/types.ts's Progress.phase) means the key edition
   // stopped early — quota exhausted, not every item finished — but there's
   // still a real, partial, resumable archive at p.outputDir, so it's
   // rendered the same as "done" rather than as an error.
-  const finished=p.phase==="done"||p.phase==="quota";
+  const finished=p.phase==="done"||p.phase==="quota"||p.phase==="risk";
   $("dot").className=p.phase==="error"?"error":finished?"done":p.phase==="idle"?"idle":"active";
   renderTasks(p.tasks);
   if(edition==="key"&&p.phase==="exporting"&&p.current!==lastQuotaCheckCurrent){
@@ -572,7 +584,7 @@ setInterval(async()=>{try{
   if(finished&&p.outputDir){
     lastOutputDir=p.outputDir;
     if(lastPhase!==p.phase){
-      showToast(p.phase==="quota"?p.message:`导出完成：${p.outputDir}`);
+      showToast(p.phase==="quota"||p.phase==="risk"?p.message:`导出完成：${p.outputDir}`);
       notify("知档",p.message||`导出完成：${p.outputDir}`);
       // The quota stop is easy to miss if it's only a toast (auto-dismisses
       // in 3-5s) or a system notification (silent if the OS one is muted,
@@ -580,7 +592,8 @@ setInterval(async()=>{try{
       // item was exported or 166 items in, the user needs to actually see
       // why the run stopped short, not just infer it from a static message
       // line. A native modal blocks until acknowledged.
-      if(p.phase==="quota") invoke("plugin:dialog|message",{message:p.message,title:"知档 · 创作能力配额已用完",kind:"warning"}).catch(()=>{});
+      if(p.phase==="quota") invoke("plugin:dialog|ask",{message:p.message+"\n\n登录版没有每日额度限制，详见官网 yingfeng.ca/zhi-dang。",title:"知档 · 创作能力配额已用完",kind:"warning",okLabel:"打开官网",cancelLabel:"关闭"}).then((open)=>{ if(open) return invoke("plugin:opener|open_url",{url:"https://yingfeng.ca/zhi-dang"}); }).catch(()=>{});
+      if(p.phase==="risk") invoke("plugin:dialog|message",{message:p.message,title:"知档 · 知乎风控已拒绝请求",kind:"warning"}).catch(()=>{});
       completedAtDir=$("dir").value;
       refreshQuotaDisplay();
     }

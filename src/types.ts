@@ -36,7 +36,7 @@ export interface SubTask { key: "images" | "write" | "word"; status: TaskStatus;
 // signal only, surfaced read-only for now; deciding what to do about it
 // (merge/skip) is a later "管理" pass, not this one.
 export interface DuplicateInfo { groupSize: number; otherTitles: string[]; }
-export interface ExportTask { id: string; kind: ContentKind; title: string; status: TaskStatus; subtasks: SubTask[]; error?: string; duplicate?: DuplicateInfo; }
+export interface ExportTask { id: string; kind: ContentKind; title: string; status: TaskStatus; subtasks: SubTask[]; error?: string; duplicate?: DuplicateInfo; paid?: boolean; }
 // Emitted by Exporter.export as it works through each item, so the caller
 // (src/server.ts) can update its own ExportTask list without the exporter
 // needing to know anything about how progress is surfaced.
@@ -59,7 +59,9 @@ export type TaskEvent =
 // quota-limited source (see ContentSource/QuotaExhaustedError in
 // src/source/types.ts) hit its daily limit, not because every item finished
 // — outputDir still points at a real, resumable, partial archive.
-export interface Progress { phase: "idle"|"login"|"listing"|"exporting"|"done"|"quota"|"error"; message: string; current?: number; total?: number; outputDir?: string; tasks?: ExportTask[]; paused?: boolean; }
+// "risk" is the same kind of early stop as "quota", but caused by the platform's
+// risk control (RiskControlError) rather than the daily limit.
+export interface Progress { phase: "idle"|"login"|"listing"|"exporting"|"done"|"quota"|"risk"|"error"; message: string; current?: number; total?: number; outputDir?: string; tasks?: ExportTask[]; paused?: boolean; }
 // Shared, in-memory, run-scoped control surface: the /api/export/pause,
 // /api/export/resume, and /api/export/skip handlers in server.ts mutate
 // this while Exporter.export polls it, so a same-process pause/skip can

@@ -2,10 +2,26 @@
 
 ## Unreleased
 
+Key edition: the About card footnote now reads "登录版没有额度限制，访问知档官网" instead of "当前密钥版 · 另有登录版，见上方网站". The login edition keeps its footnote text. In both editions the website mention in that footnote ("知档官网" / "网站") is now a clickable link to the project website, same as the "网站" row.
+
+Fixed: the About card still showed the old text mark instead of the app icon.
+
+- The About card drew a blue square with the character 档 in CSS (`.mark-sm`) for both editions. It now shows the edition's real app icon (`public/icon-login.png` / `public/icon-key.png`, copies of the files in `assets/`), chosen from the edition reported by `/api/about`.
+
+Key edition: the daily quota is no longer hard-coded in the UI or docs.
+
+- The quota help overlay, README and DEVELOPMENT.md now say the daily count follows Zhihu's open platform instead of quoting 100 / 10; the app already shows the real remaining count from the official quota endpoint.
+- The "配额已用完" dialog now ends with a pointer to the login edition (no daily quota limit) and the project website; the dialog has an "打开官网" button that opens the project website home page (no direct download link); needs the `dialog:allow-ask` capability.
+
+Key edition: a risk-control rejection (code 30003) from the Zhihu open platform now stops the export instead of being treated as a single-item failure.
+
+- `fetchBody` throws `RiskControlError` on 30003. `Exporter.export` stops sending requests, leaves the rejected and remaining items "pending" (resumable, not recorded as failures) and returns `riskBlocked`. The UI shows a new `risk` phase with a native dialog asking the user to wait before continuing. Previously the run carried on to every remaining item.
+
 Paid-knowledge answers are now exported as a preview only, with a pointer back to Zhihu.
 
 - Login edition: the answer listing now requests `answer_type`; `answer_type === "paid_knowledge"` marks an answer as paid (`isPaid: true`). Articles and the key edition's official API expose no paid marker, so their `isPaid` is `null` and they are exported in full as before.
 - A paid answer keeps about the first 10% of its text, cut at a paragraph boundary (always at least the first paragraph), followed by a notice linking to the original on Zhihu. The 10% is an approximation chosen for the archive, not Zhihu's actual preview length. Truncation happens before images are downloaded, so images beyond the preview are not fetched.
+- The export task list shows a "付费" badge (next to "疑似重复") on paid-knowledge answers, from the moment the listing is known. Articles have no paid marker, so they never show it.
 - `index.json` and `export-report.json` bump `schemaVersion` to `1.1.0`. New fields (backward compatible): per-item `isPaid` (`boolean | null`) and `truncated` (`boolean`); `summary.truncated` and `truncatedItems` in `export-report.json`. Markdown front matter gains `paid: true` / `truncated: true` where applicable.
 
 ## 1.3.0

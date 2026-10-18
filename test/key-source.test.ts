@@ -1,6 +1,6 @@
 import test from "node:test"; import assert from "node:assert/strict";
 import { KeyContentSource, fetchKeyQuota } from "../src/source/key.js";
-import { QuotaExhaustedError } from "../src/source/types.js";
+import { QuotaExhaustedError, RiskControlError } from "../src/source/types.js";
 import type { ZhihuItem } from "../src/types.js";
 
 // Stubs global fetch for the duration of `run`, routing every call through
@@ -113,5 +113,12 @@ test("fetchKeyQuota maps the Data array into a stable shape", async () => {
     return { Code: 0, Message: "success", Data: [{ APIID: "creator", APIName: "创作能力", TotalQuota: 100, TotalUsed: 12, RemainingQuota: 88 }] };
   }, async () => {
     assert.deepEqual(await fetchKeyQuota("secret"), [{ apiId: "creator", name: "创作能力", total: 100, used: 12, remaining: 88 }]);
+  });
+});
+
+test("fetchBody throws RiskControlError on 30003 (risk control, not a rate limit)", async () => {
+  await withMockFetch(() => ({ Code: 30003, Message: "风控" }), async () => {
+    const source = new KeyContentSource("secret");
+    await assert.rejects(source.fetchBody(sampleItem), (err: unknown) => err instanceof RiskControlError && !(err instanceof QuotaExhaustedError) && /风控/.test(err.message));
   });
 });

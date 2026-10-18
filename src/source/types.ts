@@ -22,3 +22,10 @@ export interface ContentSource {
 // untouched (still "pending") so a later run resumes them normally instead
 // of recording hundreds of identical quota failures.
 export class QuotaExhaustedError extends Error {}
+
+// Thrown by fetchBody when the platform rejects a request through its risk
+// control (code 30003) — not ordinary rate limiting, so retrying right away,
+// or carrying on with the remaining items, would only make it worse.
+// Exporter.export stops the run the same way it does for quota exhaustion,
+// leaving the remaining items "pending" for a later resume.
+export class RiskControlError extends Error {}

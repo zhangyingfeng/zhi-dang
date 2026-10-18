@@ -1,7 +1,7 @@
 import test from "node:test"; import assert from "node:assert/strict";
 import { mkdtemp, readFile } from "node:fs/promises"; import os from "node:os"; import path from "node:path";
 import { Exporter } from "../src/exporter.js";
-import { QuotaExhaustedError, type ContentSource } from "../src/source/types.js";
+import { QuotaExhaustedError, RiskControlError, type ContentSource } from "../src/source/types.js";
 import type { ExportControl, ExportRecord, TaskEvent, ZhihuItem } from "../src/types.js";
 
 const tmpDir = () => mkdtemp(path.join(os.tmpdir(), "export-quota-test-"));
@@ -86,4 +86,22 @@ test("a non-quota fetchBody error is still recorded as an ordinary item failure"
   const report = JSON.parse(await readFile(path.join(outputDir, "export-report.json"), "utf8"));
   assert.equal(report.summary.failed, 1);
   assert.equal(report.summary.succeeded, 2);
+});
+
+test("a RiskControlError stops the run without fetching later items or recording failures", async () => {
+  const outputDir = await tmpDir();
+  const fetched: string[] = [];
+  const riskOnSecond: ContentSource = {
+    listAll: async () => ({ items: [], reports: [] }),
+    fetchBody: async (it) => { fetched.push(it.id); if (it.id === "2") throw new RiskControlError("风控拒绝"); return `<p>${it.id}</p>`; },
+  };
+  const events: TaskEvent[] = [];
+  const result = await new Exporter().export([item("1"), item("2"), item("3")], [], { outputDir, downloadImages: false, delayMs: 0 }, riskOnSecond, (e) => events.push(e), freshControl());
+  assert.equal(result.riskBlocked, true);
+  assert.equal(result.quotaExhausted, false);
+  assert.deepEqual(fetched, ["1", "2"], "no request may be sent after the risk-control rejection");
+  assert.ok(!events.some((e) => e.id === "2" || e.id === "3"), "the rejected and later items must stay untouched");
+  const index = JSON.parse(await readFile(path.join(outputDir, "index.json"), "utf8"));
+  assert.deepEqual(index.items.map((r: ExportRecord) => r.id), ["1"]);
+  assert.equal(index.summary.failed, 0);
 });

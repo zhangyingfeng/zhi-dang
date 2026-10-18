@@ -2,6 +2,20 @@
 
 本文记录已经确认的问题、根因和修复方式，便于维护者避免回归。
 
+## （未发布）：密钥版被知乎风控拒绝（30003）后仍继续请求剩余文章
+
+### 现象
+
+密钥版导出时，只要某一篇的全文请求被知乎开放平台返回 30003（风控拒绝），这一篇会被记成普通失败，随后导出继续逐篇请求剩下的所有内容，每篇多半又被拒，最后 `export-report.json` 里堆满失败记录，也可能加重风控。
+
+### 根因
+
+`KeyContentSource.fetchBody` 只把 30001/30002（限流、额度用尽）转成会让导出整体停下的 `QuotaExhaustedError`，30003 落入通用错误分支，被 `Exporter.export` 当作"单项失败，继续下一项"。
+
+### 修复
+
+新增 `RiskControlError`。30003 时 `fetchBody` 抛出它，`Exporter.export` 停止后续请求，当前及剩余条目保持 pending（不记失败），返回 `riskBlocked`；`server.ts` 把进度置为 `risk` 阶段，界面弹窗提示稍后再继续。已有的续传机制会在下次导出时接着处理这些条目。回归测试见 `test/key-source.test.ts`、`test/exporter-quota.test.ts`。
+
 ## （未发布）：退出应用后，后端 sidecar 进程没有一起退出
 
 ### 现象

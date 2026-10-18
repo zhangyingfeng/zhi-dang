@@ -149,8 +149,9 @@ export function createServer(opts: ServerOptions) {
         const resumedCount = resumedRecords.size + resumedSkippedIds.size;
         progress = { phase: "exporting", message: resumedCount ? `继续导出：${resumedCount} 项已在上次完成` : "开始导出", current: doneCount(), total: tasks.length, tasks, paused: false };
         let quotaExhausted = false;
+        let riskBlocked = false;
         try {
-          ({ quotaExhausted } = await exporter.export(items, listingReports, { ...data, outputDir: out }, source, (e) => {
+          ({ quotaExhausted, riskBlocked } = await exporter.export(items, listingReports, { ...data, outputDir: out }, source, (e) => {
             const task = taskById.get(e.id);
             if (!task) return;
             if (e.type === "start") { task.status = "active"; progress = { ...progress, message: task.title, tasks }; }
@@ -170,7 +171,11 @@ export function createServer(opts: ServerOptions) {
         } finally { exportControl = null; }
         const skippedCount = tasks.filter((t) => t.status === "skipped").length;
         const duplicateCount = listingReports.reduce((n, r) => n + r.duplicates, 0);
-        if (quotaExhausted) {
+        if (riskBlocked) {
+          const succeededCount = tasks.filter((t) => t.status === "done").length;
+          const remainingCount = tasks.filter((t) => t.status === "pending").length;
+          progress = { phase: "risk", message: `知乎风控拒绝了请求，已停止导出：已导出 ${succeededCount} 项，剩余 ${remainingCount} 项待续传；请稍后再点击「开始导出」继续，不要连续重试。`, current: doneCount(), total: tasks.length, outputDir: out, tasks };
+        } else if (quotaExhausted) {
           const succeededCount = tasks.filter((t) => t.status === "done").length;
           const remainingCount = tasks.filter((t) => t.status === "pending").length;
           progress = { phase: "quota", message: `官方 API 今日创作全文配额已用完：已导出 ${succeededCount} 项，剩余 ${remainingCount} 项待续传；请明天再次点击「开始导出」继续。`, current: doneCount(), total: tasks.length, outputDir: out, tasks };

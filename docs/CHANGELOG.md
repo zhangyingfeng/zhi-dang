@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+Key edition: a risk-control rejection (code 30003) from the Zhihu open platform now stops the export instead of being treated as a single-item failure.
+
+- `fetchBody` throws `RiskControlError` on 30003. `Exporter.export` stops sending requests, leaves the rejected and remaining items "pending" (resumable, not recorded as failures) and returns `riskBlocked`. The UI shows a new `risk` phase with a native dialog asking the user to wait before continuing. Previously the run carried on to every remaining item.
+
 Paid-knowledge answers are now exported as a preview only, with a pointer back to Zhihu.
 
 - Login edition: the answer listing now requests `answer_type`; `answer_type === "paid_knowledge"` marks an answer as paid (`isPaid: true`). Articles and the key edition's official API expose no paid marker, so their `isPaid` is `null` and they are exported in full as before.

@@ -559,11 +559,13 @@ setInterval(async()=>{try{
   $("message").textContent=p.message;
   $("count").textContent=p.total?`${p.current||0} / ${p.total}`:(p.current?String(p.current):"");
   $("bar").value=p.total?100*(p.current||0)/p.total:0;
+  // "risk" is handled like "quota": a partial, resumable archive, stopped
+  // because Zhihu's risk control rejected a request.
   // "quota" (see src/types.ts's Progress.phase) means the key edition
   // stopped early — quota exhausted, not every item finished — but there's
   // still a real, partial, resumable archive at p.outputDir, so it's
   // rendered the same as "done" rather than as an error.
-  const finished=p.phase==="done"||p.phase==="quota";
+  const finished=p.phase==="done"||p.phase==="quota"||p.phase==="risk";
   $("dot").className=p.phase==="error"?"error":finished?"done":p.phase==="idle"?"idle":"active";
   renderTasks(p.tasks);
   if(edition==="key"&&p.phase==="exporting"&&p.current!==lastQuotaCheckCurrent){
@@ -575,7 +577,7 @@ setInterval(async()=>{try{
   if(finished&&p.outputDir){
     lastOutputDir=p.outputDir;
     if(lastPhase!==p.phase){
-      showToast(p.phase==="quota"?p.message:`导出完成：${p.outputDir}`);
+      showToast(p.phase==="quota"||p.phase==="risk"?p.message:`导出完成：${p.outputDir}`);
       notify("知档",p.message||`导出完成：${p.outputDir}`);
       // The quota stop is easy to miss if it's only a toast (auto-dismisses
       // in 3-5s) or a system notification (silent if the OS one is muted,
@@ -584,6 +586,7 @@ setInterval(async()=>{try{
       // why the run stopped short, not just infer it from a static message
       // line. A native modal blocks until acknowledged.
       if(p.phase==="quota") invoke("plugin:dialog|message",{message:p.message,title:"知档 · 创作能力配额已用完",kind:"warning"}).catch(()=>{});
+      if(p.phase==="risk") invoke("plugin:dialog|message",{message:p.message,title:"知档 · 知乎风控已拒绝请求",kind:"warning"}).catch(()=>{});
       completedAtDir=$("dir").value;
       refreshQuotaDisplay();
     }

@@ -7,7 +7,7 @@ import { truncatePaidPreview } from "./paywall.js";
 import type { DuplicateInfo, ExportControl, ExportOptions, ExportRecord, ListingReport, TaskEvent, ZhihuItem } from "./types.js";
 import { MIN_DEDUP_TEXT_LENGTH, contentHash, isoDate, normalizePlainText, safeName, sleep, writeFileAtomic, writeJson } from "./util.js";
 import { downloadImage } from "./zhihu.js";
-import { QuotaExhaustedError, type ContentSource } from "./source/types.js";
+import { QuotaExhaustedError, RiskControlError, type ContentSource } from "./source/types.js";
 
 // Polled between items (and again between an item's subtasks) rather than
 // threaded through every inner await — see ExportControl's doc comment for
@@ -50,6 +50,7 @@ export class Exporter {
     // control.resumedRecords with whatever already finished.
     const persist=()=>this.writeManifests(opts.outputDir,items.length,listingReports,records,itemFailures,skippedItems,imageFailures,wordFailures);
     let quotaExhausted=false;
+    let riskBlocked=false;
     for(let i=0;i<items.length;i++){
       const item=items[i];
       if(control.skippedItemIds.has(item.id)){ skippedItems.push({itemId:item.id,kind:item.kind,title:item.title}); onEvent({type:"done",id:item.id,status:"skipped"}); await persist(); continue; }
@@ -67,7 +68,7 @@ export class Exporter {
       // disk, but index.json stopped listing them, so the *next* run's
       // resume would treat them as never-done and burn quota re-fetching
       // work that was already sitting in that very folder.
-      if(quotaExhausted) continue;
+      if(quotaExhausted||riskBlocked) continue;
       await waitWhilePaused(control);
       // Fetched (and, for a quota-limited source, potentially rejected)
       // before announcing "start": on QuotaExhaustedError this item must
@@ -78,6 +79,7 @@ export class Exporter {
       try{ html=await source.fetchBody(item); }
       catch(error){
         if(error instanceof QuotaExhaustedError){ quotaExhausted=true; continue; }
+        if(error instanceof RiskControlError){ riskBlocked=true; continue; }
         const message=error instanceof Error?error.message:String(error);
         onEvent({type:"start",id:item.id});
         itemFailures.push({itemId:item.id,kind:item.kind,title:item.title,error:message}); onEvent({type:"done",id:item.id,status:"error",error:message});
@@ -131,7 +133,7 @@ export class Exporter {
       await sleep(opts.delayMs);
     }
     await persist();
-    return { quotaExhausted };
+    return { quotaExhausted, riskBlocked };
   }
   private async writeManifests(outputDir:string,discovered:number,listingReports:ListingReport[],records:ExportRecord[],itemFailures:ItemFailure[],skippedItems:SkippedItem[],imageFailures:ImageFailure[],wordFailures:WordFailure[]){
     const exportedAt=new Date().toISOString(); const summary={discovered,succeeded:records.length,failed:itemFailures.length,skipped:skippedItems.length,answers:records.filter(x=>x.kind==="answer").length,articles:records.filter(x=>x.kind==="article").length,imageFailures:imageFailures.length,wordFailures:wordFailures.length,truncated:records.filter(x=>x.truncated).length};

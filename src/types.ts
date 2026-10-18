@@ -59,7 +59,9 @@ export type TaskEvent =
 // quota-limited source (see ContentSource/QuotaExhaustedError in
 // src/source/types.ts) hit its daily limit, not because every item finished
 // — outputDir still points at a real, resumable, partial archive.
-export interface Progress { phase: "idle"|"login"|"listing"|"exporting"|"done"|"quota"|"error"; message: string; current?: number; total?: number; outputDir?: string; tasks?: ExportTask[]; paused?: boolean; }
+// "risk" is the same kind of early stop as "quota", but caused by the platform's
+// risk control (RiskControlError) rather than the daily limit.
+export interface Progress { phase: "idle"|"login"|"listing"|"exporting"|"done"|"quota"|"risk"|"error"; message: string; current?: number; total?: number; outputDir?: string; tasks?: ExportTask[]; paused?: boolean; }
 // Shared, in-memory, run-scoped control surface: the /api/export/pause,
 // /api/export/resume, and /api/export/skip handlers in server.ts mutate
 // this while Exporter.export polls it, so a same-process pause/skip can

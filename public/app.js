@@ -445,6 +445,7 @@ function openAbout(){
     const current=e==="key"?"密钥版":"登录版"; const other=e==="key"?"登录版":"密钥版";
     $("about-version").textContent=version;
     $("about-edition").textContent=current;
+    $("about-icon").src=e==="key"?"/icon-key.png":"/icon-login.png";
     $("about-edition-desc").textContent=`当前${current} · 另有${other}，见上方网站`;
     resizeToContent();
   }).catch(()=>{});

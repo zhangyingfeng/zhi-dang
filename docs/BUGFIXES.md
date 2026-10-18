@@ -2,6 +2,20 @@
 
 本文记录已经确认的问题、根因和修复方式，便于维护者避免回归。
 
+## （未发布）：「关于」卡片里的应用图标还是旧样式
+
+### 现象
+
+两个版本的「关于」卡片顶部都是蓝底白字"档"的小方块，和已经换成文件夹设计的新应用图标不一致。
+
+### 根因
+
+卡片里的图标不是图片，而是 `public/index.html` 中的 `<div class="mark-sm">档</div>`，样式由 `public/style.css` 的 `.mark-sm` 用 CSS 画出来。上次换图标（`9c30f34`、`3f6fe3d`）只替换了安装包图标、README 和官网里的图片，这处是代码里的样式，没被搜到。
+
+### 修复
+
+把 `assets/icon-login.png`、`assets/icon-key.png` 复制到 `public/`，卡片改用 `<img>`，`openAbout()` 按 `/api/about` 返回的版本设置 `src`，删除 `.mark-sm` 样式。以后再换图标时，除了 `assets/` 和 `src-tauri/icons/`，也要同步 `public/icon-*.png`。
+
 ## （未发布）：密钥版被知乎风控拒绝（30003）后仍继续请求剩余文章
 
 ### 现象

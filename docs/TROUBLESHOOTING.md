@@ -87,6 +87,10 @@
 
 确认 Rust 工具链（`cargo`）和 [Bun](https://bun.sh) 都已安装并在 `PATH` 里；新开的终端 / 非交互 shell 有时不会自动加载 `~/.cargo/env` 或 `$BUN_INSTALL/bin`，需要手动 `source` 一下或重新打开终端。
 
+### 「关于」卡片里的图标和应用图标不一致
+
+「关于」卡片用的是 `public/icon-login.png` / `public/icon-key.png`，不会自动跟着 `assets/` 或 `src-tauri/icons/` 更新。换应用图标后，要把 `assets/icon-login.png`、`assets/icon-key.png` 复制到 `public/` 覆盖旧文件，再重新打包（登录版和密钥版都要）。
+
 ### 改了 `public/` 下的文件，界面没有变化
 
 这是 WKWebView 的静态资源缓存问题，软刷新或让 `tauri dev` 的文件监听自动重载都不可靠。彻底解决方式是完全杀掉进程再重新启动：

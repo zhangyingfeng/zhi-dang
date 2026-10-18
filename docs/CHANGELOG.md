@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+Fixed: the About card still showed the old text mark instead of the app icon.
+
+- The About card drew a blue square with the character 档 in CSS (`.mark-sm`) for both editions. It now shows the edition's real app icon (`public/icon-login.png` / `public/icon-key.png`, copies of the files in `assets/`), chosen from the edition reported by `/api/about`.
+
 Key edition: the daily quota is no longer hard-coded in the UI or docs.
 
 - The quota help overlay, README and DEVELOPMENT.md now say the daily count follows Zhihu's open platform instead of quoting 100 / 10; the app already shows the real remaining count from the official quota endpoint.

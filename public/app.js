@@ -446,7 +446,12 @@ function openAbout(){
     $("about-version").textContent=version;
     $("about-edition").textContent=current;
     $("about-icon").src=e==="key"?"/icon-key.png":"/icon-login.png";
-    $("about-edition-desc").textContent=`当前${current} · 另有${other}，见上方网站`;
+    // The website mention is a real link (same target as the "网站" row above),
+    // so it's built from DOM nodes rather than a single text string.
+    const desc=$("about-edition-desc");
+    const [before,linkText,after]=e==="key"?["登录版没有额度限制，访问","知档官网",""]:[`当前${current} · 另有${other}，见上方`,"网站",""];
+    const link=document.createElement("button"); link.type="button"; link.className="link-inline"; link.textContent=linkText; link.onclick=openWebsite;
+    desc.replaceChildren(before,link,after);
     resizeToContent();
   }).catch(()=>{});
 }
@@ -455,9 +460,10 @@ $("about-btn").onclick=openAbout;
 $("about-close").onclick=closeAbout;
 $("about-overlay").onclick=(e)=>{ if(e.target.id==="about-overlay") closeAbout(); };
 document.addEventListener("keydown",(e)=>{ if(e.key==="Escape"&&!$("about-overlay").hidden) closeAbout(); });
-$("about-website").onclick=()=>{
+function openWebsite(){
   invoke("plugin:opener|open_url",{url:"https://yingfeng.ca/zhi-dang"}).catch(e=>showToast(e.message||String(e),true));
-};
+}
+$("about-website").onclick=openWebsite;
 $("about-repo").onclick=()=>{
   invoke("plugin:opener|open_url",{url:"https://github.com/zhangyingfeng/zhi-dang"}).catch(e=>showToast(e.message||String(e),true));
 };

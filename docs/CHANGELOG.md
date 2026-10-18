@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+Key edition: the About card footnote now reads "登录版没有额度限制，访问知档官网" instead of "当前密钥版 · 另有登录版，见上方网站". The login edition keeps its footnote text. In both editions the website mention in that footnote ("知档官网" / "网站") is now a clickable link to the project website, same as the "网站" row.
+
 Fixed: the About card still showed the old text mark instead of the app icon.
 
 - The About card drew a blue square with the character 档 in CSS (`.mark-sm`) for both editions. It now shows the edition's real app icon (`public/icon-login.png` / `public/icon-key.png`, copies of the files in `assets/`), chosen from the edition reported by `/api/about`.
